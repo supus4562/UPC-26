@@ -1,0 +1,9 @@
+{
+  "start": 712704,
+  "stop": 716800,
+  "counts": {
+    "outside_goal": 2408,
+    "ground_first": 1377,
+    "accepted": 311
+  }
+}

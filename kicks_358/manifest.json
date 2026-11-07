@@ -1,0 +1,36 @@
+{
+  "version": 4,
+  "config": {
+    "power": 20,
+    "seed": 358,
+    "chunk_size": 4096,
+    "speed_min": 10.382677881933928,
+    "speed_max": 35.833333333333336,
+    "polar_max": 90,
+    "azimuth_min": 55,
+    "azimuth_max": 125,
+    "spin_min": [
+      -8.0,
+      -5.0,
+      -15.0
+    ],
+    "spin_max": [
+      8.0,
+      5.0,
+      15.0
+    ],
+    "whole_ball": false,
+    "timeout": 15,
+    "rtol": 1e-08,
+    "atol": 1e-10,
+    "max_step": 0.02
+  },
+  "scipy_version": "1.18.1",
+  "numpy_version": "2.5.4",
+  "pyarrow_version": "26.0.0",
+  "reference_measure": "Independent uniform coordinates in the six configured intervals",
+  "selection": "Airborne through t2 and goal-plane crossing, within selected opening",
+  "spin_bounds_status": "Team 480 section 4.2 modeling ranges in rad/s",
+  "coordinates": "Team 358: x right, y forward, z up; goal y=11",
+  "angles": "theta from +z; phi from +x toward +y"
+}

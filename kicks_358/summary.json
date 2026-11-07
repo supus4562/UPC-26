@@ -1,0 +1,8 @@
+{
+  "candidates": 1048576,
+  "counts": {
+    "outside_goal": 614151,
+    "ground_first": 354532,
+    "accepted": 79893
+  }
+}
