@@ -1,0 +1,130 @@
+{
+    "primary_scenario": {
+        "v0_m_per_s": [
+            30.399999618530273,
+            9.399999618530273,
+            6.90000057220459
+        ],
+        "speed_km_h": 113.26048736572265,
+        "cd_at_v_mid": 0.25243768095970154,
+        "nominal_spin_decay_beta": 0.07,
+        "reconstruction_residual_mm": 19.651740323752165,
+        "model_consistency_verified": false,
+        "arrival_time_s": 0.3875596821308136,
+        "arrival_y_m": 2.624722719192505,
+        "arrival_z_m": 1.9914826154708862
+    },
+    "sensor_noise_comparison": {
+        "isotropic_sigma_y_cm": 15.224646031856537,
+        "isotropic_sigma_z_cm": 15.082314610481262,
+        "anisotropic_sigma_y_cm": 19.69931572675705,
+        "anisotropic_sigma_z_cm": 18.151533603668213
+    },
+    "uncertainty_budget": {
+        "camera_sigma_y_cm": 19.71462662926665,
+        "camera_sigma_z_cm": 18.170528901576592,
+        "cd_model_sigma_y_cm": 0.437713219349163,
+        "cd_model_sigma_z_cm": 0.8000529753024862,
+        "spin_decay_sigma_y_cm": 0.14301700184521365,
+        "spin_decay_sigma_z_cm": 0.018171687906540137,
+        "wind_sigma_y_cm": 3.5756646811779396,
+        "wind_sigma_z_cm": 0.35921553102118037,
+        "total_sigma_y_cm": 20.041555023720658,
+        "total_sigma_z_cm": 18.19168962285496,
+        "cam_only_ellipse_semi_major_m": 0.5436683297353918,
+        "cam_only_ellipse_semi_minor_m": 0.3675304805986229,
+        "cam_only_ellipse_area_m2": 0.6277363386650425,
+        "combined_ellipse_semi_major_m": 0.5470892603498851,
+        "combined_ellipse_semi_minor_m": 0.3724681278093309,
+        "combined_ellipse_area_m2": 0.6401727416956681
+    },
+    "goalkeeper_3d": {
+        "reaction_time_s": 0.18,
+        "move_time_s": 0.2075596821308136,
+        "horizontal_reach_m": 1.9840185695886614,
+        "vertical_reach_m": 1.781167109966278,
+        "save_probability": 7.72e-05
+    },
+    "archetype_robustness": [
+        {
+            "name": "Upper-Right In-Curler (Given Scenario)",
+            "target_y": 2.6242731801937027,
+            "target_z": 1.991370941166613,
+            "flight_time_s": 0.3875616390274401,
+            "is_goal": true,
+            "semi_major_m": 0.3702068622698007,
+            "semi_minor_m": 0.3633542299746742,
+            "tilt_deg": -141.1192654650329,
+            "area_m2": 0.4225951979817386,
+            "color": "#1f77b4"
+        },
+        {
+            "name": "Upper-Left In-Swinger",
+            "target_y": -2.624351644723387,
+            "target_z": 1.97163044845048,
+            "flight_time_s": 0.39669319279965637,
+            "is_goal": true,
+            "semi_major_m": 0.3887747812060497,
+            "semi_minor_m": 0.3811456881853506,
+            "tilt_deg": 144.42228387926605,
+            "area_m2": 0.4655206701507554,
+            "color": "#ff7f0e"
+        },
+        {
+            "name": "Low-Right Driven Corner Shot",
+            "target_y": 1.850786083094006,
+            "target_z": 0.7039427556660975,
+            "flight_time_s": 0.37858608855669623,
+            "is_goal": true,
+            "semi_major_m": 0.34977205700180014,
+            "semi_minor_m": 0.3452817418624095,
+            "tilt_deg": 165.98678791519447,
+            "area_m2": 0.37940984662552246,
+            "color": "#2ca02c"
+        },
+        {
+            "name": "Low-Left Driven Corner Shot",
+            "target_y": -1.850786083094006,
+            "target_z": 0.7039427556660975,
+            "flight_time_s": 0.37858608855669623,
+            "is_goal": true,
+            "semi_major_m": 0.35087913326057324,
+            "semi_minor_m": 0.34545624803076685,
+            "tilt_deg": 177.05566270700237,
+            "area_m2": 0.3808030920487874,
+            "color": "#d62728"
+        },
+        {
+            "name": "Center Panenka Chip (Dipping Topspin)",
+            "target_y": 0.06401989809295658,
+            "target_z": 2.216470157852202,
+            "flight_time_s": 0.7394366191876598,
+            "is_goal": true,
+            "semi_major_m": 1.377322409280038,
+            "semi_minor_m": 1.3323127915780044,
+            "tilt_deg": 174.40258104941802,
+            "area_m2": 5.764898746975442,
+            "color": "#9467bd"
+        }
+    ],
+    "starting_point_robustness": {
+        "std_y_mm": 50.6875142455101,
+        "std_z_mm": 5.452485289424658
+    },
+    "frame_rate_robustness": {
+        "fps": [
+            15,
+            20,
+            30,
+            60,
+            100
+        ],
+        "ellipse_area_m2": [
+            0.10805940623583081,
+            0.42036084859103695,
+            2.5932537890103626,
+            61.605434192162676,
+            119.64853861960421
+        ]
+    }
+}
