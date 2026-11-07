@@ -29,7 +29,10 @@
 ## 2. Advanced Aerodynamics (Beyond Constant Coefficients)
 
 When a soccer ball travels at over $110\text{ km/h}$, real-world fluid dynamics govern its flight:
-1. **Gravity**: Pulls down at $9.81\text{ m/s}^2$.
+1. **Gravity & Archimedes Air Buoyancy**:
+   * Downward gravitational acceleration is mitigated by upward air buoyancy:
+     $$F_{\text{buoyancy}} = \rho_{\text{air}} V_{\text{ball}} g \implies \vec{g}_{\text{eff}} = \vec{g}\left(1 - \frac{\rho_{\text{air}} V_{\text{ball}}}{M_{\text{ball}}}\right)$$
+   * For FIFA Size 5 ball ($R = 11\text{ cm}, M = 0.43\text{ kg}$), buoyant displacement is $\approx 6.83\text{ grams}$ ($1.59\%$), yielding effective gravitational field $g_{\text{eff}} \approx 9.654\text{ m/s}^2$.
 2. **Velocity-Dependent Drag & The Drag Crisis**:
    * Drag does *not* have a constant coefficient. A smooth soccer ball experiences a boundary-layer **drag crisis** at $Re \approx 4 \times 10^5$ ($v \approx 26.8\text{ m/s}$).
    * At high speeds ($> 100\text{ km/h}$), the boundary layer becomes turbulent, reducing $C_D$ from $\approx 0.47$ down to $\approx 0.20$–$0.25$.

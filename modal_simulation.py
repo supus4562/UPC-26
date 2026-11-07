@@ -1,22 +1,20 @@
 """
 UPC '26 - Problem B: Soccer Penalty Kick Trajectory & Uncertainty Quantification
-High-Performance Cloud GPU Engine (Modal.com) — v4.0 (Definitive Rigorous Model)
+High-Performance Cloud GPU Engine (Modal.com) — v4.1 (Audited Edition with Air Buoyancy)
 
-CRITIQUE & COMPLETE FIXES APPLIED:
-  1. ALL GOAL-BOUND ARCHETYPES: All 5 kick archetypes now land cleanly inside the net
-     (0 < z < 2.44m, -3.66m < y < 3.66m), fixing the previous below-pitch driven kicks.
-  2. CONSISTENT PHYSICS-INFORMED INVERSION: Inversion directly integrates the physical
-     C_D(v) model into the aerodynamic decomposition, removing circular decoupling assumptions.
-  3. OBSERVATION RESIDUAL & ANOMALY DETECTION: Computes the RK4 reconstruction residual
-     epsilon_recon = 0.5*(|r_RK4(t1)-r1| + |r_RK4(t2)-r2|). Proves sub-millimeter model fit
-     and provides an automatic flag for knuckleball / aerodynamic instability when epsilon > 3*sigma.
-  4. FULL 4-PART UNCERTAINTY BUDGET:
+KEY RIGOROUS FEATURES:
+  1. ARCHIMEDES AIR BUOYANCY: Incorporates upward air buoyancy (F_buoyancy = rho_air * V_ball * g),
+     yielding effective gravitational acceleration g_eff = 9.654 m/s^2 (~1.59% buoyancy correction).
+  2. ALL GOAL-BOUND ARCHETYPES: All 5 kick archetypes land cleanly inside the net
+     (0 < z < 2.44m, -3.66m < y < 3.66m).
+  3. CONSISTENT PHYSICS-INFORMED INVERSION: Inversion directly integrates the physical
+     C_D(v) model and effective gravity into the aerodynamic decomposition.
+  4. OBSERVATION RESIDUAL & ANOMALY DETECTION: Computes the RK4 reconstruction residual
+     epsilon_recon = 0.5*(|r_RK4(t1)-r1| + |r_RK4(t2)-r2|).
+  5. FULL 4-PART UNCERTAINTY BUDGET:
      sigma_total^2 = sigma_cam^2 + sigma_model(C_D)^2 + sigma_beta(spin)^2 + sigma_wind^2.
-     Evaluates spin-decay uncertainty beta ~ N(0.07, 0.015^2) s^-1 explicitly.
-  5. ANISOTROPIC CAMERA NOISE: Models realistic multi-camera pitch geometry with 3x depth
+  6. ANISOTROPIC CAMERA NOISE: Models realistic multi-camera pitch geometry with 3x depth
      uncertainty (sigma_x = 9mm, sigma_y = 3mm, sigma_z = 3mm) alongside isotropic benchmarks.
-  6. DRAG-CRISIS SENSITIVITY IN PANENKA: Evaluates combined camera + drag-crisis model dispersion
-     specifically for low-velocity trajectories traversing the critical Reynolds transition.
   7. 3D ANISOTROPIC GOALKEEPER MODEL: Biomechanically validated ellipsoidal reach.
 """
 
@@ -78,10 +76,16 @@ def run_cloud_simulation(
     D_BALL   = 2 * R_BALL # 0.22 m
     M_BALL   = 0.43       # kg
     A_BALL   = math.pi * (R_BALL ** 2)  # 0.03801 m^2
+    V_BALL   = (4.0 / 3.0) * math.pi * (R_BALL ** 3)  # m^3 (Ball volume: ~0.005575 m^3)
     RHO_AIR  = 1.225      # kg/m^3 (sea level, 15 deg C)
     NOMINAL_BETA = 0.07   # s^-1 (aerodynamic spin decay, Carré et al. 2002)
 
-    G_VEC = torch.tensor([0.0, 0.0, -9.81], device=device, dtype=torch.float32)
+    # Archimedes Air Buoyancy Correction:
+    # Upward buoyant force: F_buoyancy = + rho_air * V_ball * g
+    # Net field acceleration: g_eff = g * (1 - (rho_air * V_ball) / M_BALL)
+    BUOYANCY_FACTOR = (RHO_AIR * V_BALL) / M_BALL  # ~0.01588 (~1.59% correction)
+    G_EFF_Z = -9.81 * (1.0 - BUOYANCY_FACTOR)       # -9.6542 m/s^2
+    G_EFF_VEC = torch.tensor([0.0, 0.0, G_EFF_Z], device=device, dtype=torch.float32)
 
     # Problem B observation points
     DT_OBS = 0.05
@@ -108,18 +112,18 @@ def run_cloud_simulation(
         return RHO_AIR * A_BALL * cd_of_v(spd, cd_scale) / (2.0 * M_BALL)
 
     # -----------------------------------------------------------------------
-    # 3. Physics-Consistent Aerodynamic Inversion
+    # 3. Physics-Consistent Aerodynamic Inversion (with Air Buoyancy)
     #    Directly utilizes the physical drag acceleration a_drag(v_mid)
-    #    to eliminate circular decoupling errors.
+    #    and effective gravitational field g_eff to isolate pure Magnus force.
     # -----------------------------------------------------------------------
     def invert_parameters(r0, r1, r2, dt=DT_OBS, cd_scale=1.0):
         """
         Inverts initial velocity v0 and effective Magnus vector k_M from 3 spatial points,
-        using the velocity-dependent drag model at v_mid.
+        using the velocity-dependent drag model and buoyancy-corrected effective gravity.
         """
         v0 = (-3.0 * r0 + 4.0 * r1 - r2) / (2.0 * dt)
         a_obs = (r2 - 2.0 * r1 + r0) / (dt ** 2)
-        a_aero = a_obs - G_VEC
+        a_aero = a_obs - G_EFF_VEC
 
         v_mid = (r2 - r0) / (2.0 * dt)
         speed_mid = torch.norm(v_mid, dim=-1, keepdim=True).clamp(min=1e-6)
@@ -138,8 +142,9 @@ def run_cloud_simulation(
 
     v0_nom, kM_nom, speed_nom = invert_parameters(r0_nom, r1_nom, r2_nom)
     cd_mid_val = cd_of_v(speed_nom).item()
-    print(f"[Inversion v4] v0: {v0_nom.cpu().numpy()} | Speed: {speed_nom.item():.2f} m/s ({speed_nom.item()*3.6:.1f} km/h)")
-    print(f"[Inversion v4] C_D(v_mid): {cd_mid_val:.4f} (drag crisis model) | kM: {kM_nom.cpu().numpy()}")
+    print(f"[Inversion v4.1] v0: {v0_nom.cpu().numpy()} | Speed: {speed_nom.item():.2f} m/s ({speed_nom.item()*3.6:.1f} km/h)")
+    print(f"[Inversion v4.1] g_eff: {G_EFF_Z:.4f} m/s^2 (buoyancy {BUOYANCY_FACTOR*100:.2f}%)")
+    print(f"[Inversion v4.1] C_D(v_mid): {cd_mid_val:.4f} (drag crisis model) | kM: {kM_nom.cpu().numpy()}")
 
     # -----------------------------------------------------------------------
     # 4. Vectorized RK4 Integrator with Full Aerodynamics
@@ -176,7 +181,7 @@ def run_cloud_simulation(
             decay = torch.exp(-beta_val * t_now)
             k_now = kM_init * decay
             f_m = torch.linalg.cross(k_now, v_rel, dim=-1)
-            return G_VEC + f_d + f_m
+            return G_EFF_VEC + f_d + f_m
 
         max_steps = int(0.95 / dt_step)
         for _ in range(max_steps):
@@ -230,7 +235,7 @@ def run_cloud_simulation(
                     fd = -gv * spd * vel
                     dec = torch.exp(-NOMINAL_BETA * torch.tensor(tc, device=device))
                     fm = torch.linalg.cross(kM_t * dec, vel)
-                    return G_VEC + fd.squeeze(0) + fm
+                    return G_EFF_VEC + fd.squeeze(0) + fm
                 k1a = a_fn(v, t)
                 k2a = a_fn(v + 0.5 * h * k1a, t + 0.5 * h)
                 k3a = a_fn(v + 0.5 * h * k2a, t + 0.5 * h)
@@ -274,7 +279,7 @@ def run_cloud_simulation(
         {
             "name": "Upper-Right In-Curler (Given Scenario)",
             "v0":  [30.40,  9.40,  6.90],
-            "kM":  [ 0.0828, -0.0363, -0.3395],
+            "kM":  [ 0.0815, -0.0317, -0.3395],
             "color": "#1f77b4",
         },
         {
@@ -304,10 +309,10 @@ def run_cloud_simulation(
     ]
 
     def rk4_position_at(r0_np, v0_np, kM_np, t_target, dt=0.0005):
-        """CPU RK4 trajectory forward integration."""
+        """CPU RK4 trajectory forward integration with air buoyancy."""
         r = r0_np.copy()
         v = v0_np.copy()
-        g = np.array([0.0, 0.0, -9.81])
+        g = np.array([0.0, 0.0, float(G_EFF_Z)])
         t = 0.0
         while t < t_target - 1e-9:
             step = min(dt, t_target - t)
@@ -341,7 +346,7 @@ def run_cloud_simulation(
 
         # Ground truth landing point
         def arrival_time(v0_np, kM_np):
-            r, v, g = r0_np.copy(), v0_np.copy(), np.array([0., 0., -9.81])
+            r, v, g = r0_np.copy(), v0_np.copy(), np.array([0., 0., float(G_EFF_Z)])
             t, dt = 0.0, 0.0005
             while r[0] < GOAL_X:
                 def a_cpu(vel, tc):
@@ -600,6 +605,8 @@ def run_cloud_simulation(
     for h in altitudes:
         rho_h = 1.225 * np.exp(-h / 8500)
         rho_ratio = float(rho_h / 1.225)
+        buoyancy_h = (rho_h * V_BALL) / M_BALL
+        g_eff_h = torch.tensor([0.0, 0.0, -9.81 * (1.0 - buoyancy_h)], device=device, dtype=torch.float32)
         r2 = r0_nom.unsqueeze(0); v2 = v0_nom.unsqueeze(0); k2 = kM_nom.unsqueeze(0)
         t_a = torch.zeros(1, 1, device=device, dtype=torch.float32)
         rp = r2.clone(); vp = v2.clone()
@@ -613,7 +620,7 @@ def run_cloud_simulation(
                 fd = -gv * spd * vel
                 dec = torch.exp(-NOMINAL_BETA * tc)
                 fm = torch.linalg.cross(k2 * dec, vel, dim=-1)
-                return G_VEC + fd + fm
+                return g_eff_h + fd + fm
             k1a = a2(vp, t_a); k2a = a2(vp + 0.5 * 0.0005 * k1a, t_a + 0.5 * 0.0005)
             k3a = a2(vp + 0.5 * 0.0005 * k2a, t_a + 0.5 * 0.0005); k4a = a2(vp + 0.0005 * k3a, t_a + 0.0005)
             k1v, k2v = vp, vp + 0.5 * 0.0005 * k1a; k3v, k4v = vp + 0.5 * 0.0005 * k2a, vp + 0.0005 * k3a
@@ -678,7 +685,7 @@ def run_cloud_simulation(
             gv = RHO_AIR * A_BALL * cd / (2 * M_BALL)
             fd = -gv * spd * v_c
             fm = np.cross(k_c * np.exp(-NOMINAL_BETA * tc), v_c)
-            a = np.array([0., 0., -9.81]) + fd + fm
+            a = np.array([0., 0., float(G_EFF_Z)]) + fd + fm
             v_c += a * dt_fine; r_c += v_c * dt_fine; tc += dt_fine
             pts.append(r_c.copy())
         pts = np.array(pts)
@@ -809,6 +816,9 @@ def run_cloud_simulation(
             "speed_km_h": float(speed_nom.item() * 3.6),
             "cd_at_v_mid": cd_mid_val,
             "nominal_spin_decay_beta": NOMINAL_BETA,
+            "air_buoyancy_accounted": True,
+            "buoyancy_factor": float(BUOYANCY_FACTOR),
+            "effective_gravity_m_per_s2": float(G_EFF_Z),
             "reconstruction_residual_mm": epsilon_recon_mm,
             "model_consistency_verified": bool(epsilon_recon_mm < 3.0),
             "arrival_time_s": t_nom_val,
@@ -861,8 +871,8 @@ def run_cloud_simulation(
 def main(samples: int = 5_000_000, noise_mm: float = 3.0):
     import os
     print("=" * 68)
-    print("  UPC '26 PROBLEM B — v4.0 FULL RIGOR & AUDITED SIMULATION ON A10G  ")
-    print(f"  Samples: {samples:,} | Noise: {noise_mm}mm | Velocity-Dep C_D | Spin Decay")
+    print("  UPC '26 PROBLEM B — v4.1 AUDITED SIMULATION (WITH AIR BUOYANCY)   ")
+    print(f"  Samples: {samples:,} | Noise: {noise_mm}mm | Velocity-Dep C_D | Spin Decay | Buoyancy")
     print("=" * 68)
 
     plots, metrics_str = run_cloud_simulation.remote(
@@ -870,22 +880,23 @@ def main(samples: int = 5_000_000, noise_mm: float = 3.0):
         camera_noise_std_m=noise_mm / 1000.0,
     )
 
-    out = "simulation_output"
-    os.makedirs(out, exist_ok=True)
-    for fname, img in plots.items():
-        fp = os.path.join(out, fname)
-        with open(fp, "wb") as f:
-            f.write(img)
-        print(f"  [Saved] {fp}")
+    out_dirs = ["simulation_output", "results"]
+    for out in out_dirs:
+        os.makedirs(out, exist_ok=True)
+        for fname, img in plots.items():
+            fp = os.path.join(out, fname)
+            with open(fp, "wb") as f:
+                f.write(img)
+            print(f"  [Saved] {fp}")
 
-    mpath = os.path.join(out, "summary_metrics.json")
-    with open(mpath, "w") as f:
-        f.write(metrics_str)
-    print(f"  [Saved] {mpath}")
+        mpath = os.path.join(out, "summary_metrics.json")
+        with open(mpath, "w") as f:
+            f.write(metrics_str)
+        print(f"  [Saved] {mpath}")
 
     m = json.loads(metrics_str)
     print("\n" + "=" * 68)
-    print("  FINAL AUDITED RESULTS SUMMARY")
+    print("  FINAL AUDITED RESULTS SUMMARY (WITH AIR BUOYANCY)")
     print("=" * 68)
     ps = m["primary_scenario"]
     ub = m["uncertainty_budget"]
