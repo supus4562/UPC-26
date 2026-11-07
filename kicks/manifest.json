@@ -1,0 +1,35 @@
+{
+  "version": 5,
+  "total_candidates": 67108864,
+  "accepted_goals": 4672266,
+  "train_rows": 3737617,
+  "test_rows": 934649,
+  "split_ratio": 0.8,
+  "spin_decay_constant": 0.07,
+  "counts": {
+    "accepted": 4672266,
+    "outside_goal": 31561034,
+    "ground_first": 8886456,
+    "timeout": 21989108,
+    "crossed_before_t2": 0
+  },
+  "sampling_bounds": {
+    "speed_min": 10.382677881933928,
+    "speed_max": 35.833333333333336,
+    "polar_max": 90.0,
+    "azimuth_min": 55.0,
+    "azimuth_max": 125.0,
+    "spin_min": [
+      -8.0,
+      -5.0,
+      -15.0
+    ],
+    "spin_max": [
+      8.0,
+      5.0,
+      15.0
+    ],
+    "whole_ball": false
+  },
+  "elapsed_seconds": 191.207003203
+}

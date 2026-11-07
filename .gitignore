@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.tmp
+.venv/
+.pytest_cache/
+simulation_output/
+*.log
+data.zip

@@ -16,6 +16,7 @@ import scipy
 from scipy.integrate import solve_ivp
 from scipy.stats import qmc
 
+
 VERSION = 4
 FLOAT_COLUMNS = [
     "speed_m_s", "polar_deg", "azimuth_deg",
@@ -49,16 +50,18 @@ def integrate(velocity, omega, config):
     magnus = 8 * math.pi * density * radius**3 / (3 * mass)
     gravity = 9.8 * (1 - density * 4 * math.pi * radius**3 / (3 * mass))
     wx, wy, wz = omega
+    decay_constant = config.get("decay_constant", 0.07)
 
     def rhs(t, state):
         vx, vy, vz = state[3:]
         damping = drag * math.sqrt(vx*vx + vy*vy + vz*vz)
-        # Team 358's v cross omega sign, in a right-handed world frame.
+        decay = math.exp(-decay_constant * t) if decay_constant > 0 else 1.0
+        # Team 358's v cross omega sign, in a right-handed world frame with aerodynamic spin decay.
         return [
             vx, vy, vz,
-            -damping*vx + magnus*(vy*wz-vz*wy),
-            -damping*vy + magnus*(vz*wx-vx*wz),
-            -gravity-damping*vz + magnus*(vx*wy-vy*wx),
+            -damping*vx + magnus*decay*(vy*wz-vz*wy),
+            -damping*vy + magnus*decay*(vz*wx-vx*wz),
+            -gravity-damping*vz + magnus*decay*(vx*wy-vy*wx),
         ]
 
     return solve_ivp(
@@ -124,6 +127,8 @@ def main():
     parser.add_argument("--spin-max", nargs=3, type=float, default=[8,5,15],
                         metavar=("WX", "WY", "WZ"), help="Upper spin bounds in rad/s")
     parser.add_argument("--whole-ball", action="store_true")
+    parser.add_argument("--decay-constant", type=float, default=0.07,
+                        help="Aerodynamic spin decay constant beta in 1/s (Carré et al. 2002)")
     parser.add_argument("--timeout", type=float, default=15)
     parser.add_argument("--rtol", type=float, default=1e-8)
     parser.add_argument("--atol", type=float, default=1e-10)
@@ -137,7 +142,8 @@ def main():
             and 0 < args.polar_max <= 90 and 0 <= args.azimuth_min < args.azimuth_max <= 180
             and np.isfinite([args.spin_min,args.spin_max]).all()
             and np.all(np.array(args.spin_min) <= np.array(args.spin_max))
-            and np.isfinite([args.timeout,args.rtol,args.atol,args.max_step]).all()
+            and np.isfinite([args.timeout,args.rtol,args.atol,args.max_step,args.decay_constant]).all()
+            and args.decay_constant >= 0
             and args.timeout > .1 and min(args.rtol,args.atol,args.max_step) > 0):
         parser.error("Invalid sampling or solver limits.")
     output.mkdir(parents=True, exist_ok=True)
@@ -146,6 +152,7 @@ def main():
         "numpy_version": np.__version__, "pyarrow_version": pa.__version__,
         "reference_measure": "Independent uniform coordinates in the six configured intervals",
         "selection": "Airborne through t2 and goal-plane crossing, within selected opening",
+        "spin_decay": f"Aerodynamic spin decay beta = {args.decay_constant} s^-1 (Carré et al. 2002)",
         "spin_bounds_status": "Team 480 section 4.2 modeling ranges in rad/s",
         "coordinates": "Team 358: x right, y forward, z up; goal y=11",
         "angles": "theta from +z; phi from +x toward +y",

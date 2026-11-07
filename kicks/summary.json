@@ -1,0 +1,10 @@
+{
+  "candidates": 67108864,
+  "counts": {
+    "accepted": 4672266,
+    "outside_goal": 31561034,
+    "ground_first": 8886456,
+    "timeout": 21989108,
+    "crossed_before_t2": 0
+  }
+}

@@ -16,9 +16,14 @@ CROSSING = ["x_goal", "y_goal", "z_goal"]
 def load_kicks(path):
     import pyarrow.dataset as ds
 
-    files = sorted(path.glob("part-*.parquet")) if path.is_dir() else [path]
+    if path.is_dir():
+        files = sorted(path.glob("part-*.parquet"))
+        if not files:
+            files = sorted(path.glob("*.parquet"))
+    else:
+        files = [path]
     if not files:
-        raise ValueError("No part-*.parquet files found.")
+        raise ValueError(f"No parquet files found in {path}.")
     table = ds.dataset(files, format="parquet").to_table(columns=OBSERVATIONS+CROSSING)
     if not table.num_rows:
         raise ValueError("The dataset contains no retained kicks.")
