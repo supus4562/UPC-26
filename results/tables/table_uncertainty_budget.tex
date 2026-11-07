@@ -1,0 +1,18 @@
+\begin{table}[htbp]
+\centering
+\caption{Comprehensive 4-Part Goal-Plane Uncertainty Budget (5,000,000 Monte Carlo GPU Samples)}
+\label{tab:uncertainty_budget}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Uncertainty Source} & $\mathbf{\sigma_y}$ \textbf{(cm)} & $\mathbf{\sigma_z}$ \textbf{(cm)} & \textbf{Var Share (\%)} & $\mathbf{\text{Cov}(y,z)}$ $\mathbf{(\text{cm}^2)}$ & $\mathbf{\rho_{yz}}$ & \textbf{95\% Area} $\mathbf{(\text{m}^2)}$ \\
+\midrule
+Optical Camera Noise (Anisotropic) & $19.89$ & $18.35$ & $98.1\%$ & $133.02$ & $+0.365$ & $0.6396$ \\
+\quad \textit{Comparison: Optical (Isotropic 3mm)} & $15.35$ & $15.22$ & \textit{--} & $4.56$ & $+0.020$ & $0.4397$ \\
+Crosswind Uncertainty ($\pm 1.0\text{ m/s}$) & $3.67$ & $0.40$ & $1.8\%$ & $-1.46$ & $-1.000$ & $0.0000$ \\
+Aerodynamic Drag Model Error ($\pm 10\% C_D$) & $0.45$ & $0.82$ & $0.1\%$ & $0.37$ & $+1.000$ & $0.0000$ \\
+Spin Decay Rate Error ($\pm 21\% \beta$) & $0.15$ & $0.02$ & $0.00\%$ & $-0.00$ & $-1.000$ & $0.0000$ \\
+\midrule
+\textbf{Total Combined Uncertainty Budget} & $\mathbf{20.23}$ & $\mathbf{18.37}$ & $\mathbf{100.0\%}$ & $\mathbf{133.33}$ & $\mathbf{+0.358}$ & $\mathbf{0.6555}$ \\
+\bottomrule
+\end{tabular}
+\end{table}

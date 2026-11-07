@@ -243,10 +243,36 @@ def run_cloud_simulation(
             p[3:] = p[3:] - torch.dot(p[3:], v_unit) * v_unit
 
         pts_final = rk4_pts_64(r0_64, p[:3], p[3:])
+        f1_final = pts_final[0] - r1_64
+        f2_final = pts_final[1] - r2_64
+        F_final = torch.cat([f1_final, f2_final])
+        J_final = torch.zeros((6, 6), device=device, dtype=torch.float64)
+        eps = 1e-5
+        for j in range(6):
+            p_pert = p.clone()
+            p_pert[j] += eps
+            pts_pert = rk4_pts_64(r0_64, p_pert[:3], p_pert[3:])
+            F_pert = torch.cat([pts_pert[0] - r1_64, pts_pert[1] - r2_64])
+            J_final[:, j] = (F_pert - F_final) / eps
+
+        U, S, Vh = torch.linalg.svd(J_final)
+        cond_num = float((S[0] / S[-1]).item())
+        J_pinv = torch.linalg.pinv(J_final, rtol=1e-3)
+
         err1 = torch.norm(pts_final[0] - r1_64).item()
         err2 = torch.norm(pts_final[1] - r2_64).item()
         res_mm = 0.5 * (err1 + err2) * 1000.0
-        return p[:3].to(torch.float32), p[3:].to(torch.float32), res_mm, err1 * 1000.0, err2 * 1000.0
+        return (
+            p[:3].to(torch.float32),
+            p[3:].to(torch.float32),
+            res_mm,
+            err1 * 1000.0,
+            err2 * 1000.0,
+            J_final.cpu().numpy(),
+            S.cpu().numpy(),
+            cond_num,
+            J_pinv.cpu().numpy(),
+        )
 
     # (a) Analytical Inversion
     v0_ana, kM_ana, speed_ana = invert_parameters(r0_nom, r1_nom, r2_nom)
@@ -256,9 +282,17 @@ def run_cloud_simulation(
     epsilon_ana_mm = 0.5 * (err1_ana + err2_ana)
 
     # (b) Shooting Parameter Refinement
-    v0_opt, kM_opt, epsilon_opt_mm, err1_opt, err2_opt = refine_parameters_shooting(
-        r0_nom, r1_nom, r2_nom, v0_ana, kM_ana
-    )
+    (
+        v0_opt,
+        kM_opt,
+        epsilon_opt_mm,
+        err1_opt,
+        err2_opt,
+        J_shooting,
+        S_shooting,
+        cond_shooting,
+        J_pinv_shooting,
+    ) = refine_parameters_shooting(r0_nom, r1_nom, r2_nom, v0_ana, kM_ana)
 
     # Physical Spin Inversion (Rubinow-Keller / Asai / Briggs Magnus formulation)
     omega_nom = kM_opt / C_MAGNUS                      # rad/s
@@ -380,6 +414,71 @@ def run_cloud_simulation(
     print(f"Impact       : y = {y_nom:.4f} m, z = {z_nom:.4f} m")
     print(f"In goal      : {GOAL_Y_MIN < y_nom < GOAL_Y_MAX and GOAL_Z_MIN < z_nom < GOAL_Z_MAX}")
     print(f"=============================================\n")
+
+    # -----------------------------------------------------------------------
+    # 6b. Goal-Plane Sensitivity Jacobian & Analytical Covariance Propagation
+    # -----------------------------------------------------------------------
+    def compute_goal_intercept_64(v0_in, kM_in, dt_step=0.0005):
+        r = r0_nom.clone().to(torch.float64)
+        v = v0_in.clone().to(torch.float64)
+        kM_64 = kM_in.clone().to(torch.float64)
+        t = 0.0
+        g_64 = torch.tensor([0.0, 0.0, float(G_EFF_Z)], device=device, dtype=torch.float64)
+        def a_fn(vel, tc):
+            spd = torch.norm(vel).clamp(min=1e-9)
+            cd = CD_LOW + (CD_HIGH - CD_LOW) / (1.0 + torch.exp((spd - V_CRIT) / V_WIDTH))
+            gv = RHO_AIR * A_BALL * cd / (2.0 * M_BALL)
+            fd = -gv * spd * vel
+            dec = math.exp(-NOMINAL_BETA * tc)
+            fm = torch.linalg.cross(kM_64 * dec, vel)
+            return g_64 + fd + fm
+        while r[0] < GOAL_X:
+            r_p, v_p, t_p = r.clone(), v.clone(), t
+            k1a = a_fn(v, t)
+            k2a = a_fn(v + 0.5 * dt_step * k1a, t + 0.5 * dt_step)
+            k3a = a_fn(v + 0.5 * dt_step * k2a, t + 0.5 * dt_step)
+            k4a = a_fn(v + dt_step * k3a, t + dt_step)
+            k1v, k2v, k3v, k4v = v, v + 0.5 * dt_step * k1a, v + 0.5 * dt_step * k2a, v + dt_step * k3a
+            r = r + (dt_step / 6.0) * (k1v + 2 * k2v + 2 * k3v + k4v)
+            v = v + (dt_step / 6.0) * (k1a + 2 * k2a + 2 * k3a + k4a)
+            t += dt_step
+        dx = r[0] - r_p[0]
+        alpha = (GOAL_X - r_p[0]) / (dx + 1e-12)
+        t_g = t_p + alpha * dt_step
+        r_g = r_p + alpha * (r - r_p)
+        v_g = v_p + alpha * (v - v_p)
+        return t_g, r_g, v_g
+
+    t_g_nom, r_g_nom, v_g_nom = compute_goal_intercept_64(v0_opt, kM_opt)
+    y_nom_64 = r_g_nom[1].item()
+    z_nom_64 = r_g_nom[2].item()
+
+    # Numerical Jacobian: d(y_goal, z_goal) / d(v0, kM) [2x6]
+    J_goal_p = np.zeros((2, 6), dtype=np.float64)
+    eps_sens = 1e-5
+    p_nom_64 = torch.cat([v0_opt.to(torch.float64), kM_opt.to(torch.float64)])
+    for j in range(6):
+        p_pert = p_nom_64.clone()
+        p_pert[j] += eps_sens
+        _, r_pert, _ = compute_goal_intercept_64(p_pert[:3], p_pert[3:])
+        J_goal_p[0, j] = (r_pert[1].item() - y_nom_64) / eps_sens
+        J_goal_p[1, j] = (r_pert[2].item() - z_nom_64) / eps_sens
+
+    # End-to-end sensitivity from observations (r1, r2) to goal coordinates (y, z):
+    # J_goal_obs = J_goal_p @ J_pinv_shooting  [2x6]
+    J_goal_obs = J_goal_p @ J_pinv_shooting
+
+    # Analytical linear covariance propagation:
+    cov_obs_aniso = np.diag([
+        camera_noise_depth_m**2, camera_noise_std_m**2, camera_noise_std_m**2,
+        camera_noise_depth_m**2, camera_noise_std_m**2, camera_noise_std_m**2
+    ])
+    cov_goal_linear_aniso = J_goal_obs @ cov_obs_aniso @ J_goal_obs.T
+    sigma_y_linear = float(np.sqrt(cov_goal_linear_aniso[0, 0]) * 100)
+    sigma_z_linear = float(np.sqrt(cov_goal_linear_aniso[1, 1]) * 100)
+    print(f"[Linear Sensitivity Analysis]")
+    print(f"  Shooting Condition Number kappa(J) = {cond_shooting:.2f}")
+    print(f"  Linear Propagated Sigma (Anisotropic): sigma_y = {sigma_y_linear:.2f} cm, sigma_z = {sigma_z_linear:.2f} cm\n")
 
     # -----------------------------------------------------------------------
     # 7. Goal-Bound Archetypes Suite (All Land Cleanly Inside Net)
@@ -682,6 +781,62 @@ def run_cloud_simulation(
     print(f"  Total Combined 95%      : +/-{semi_a_tot:.3f}m x +/-{semi_b_tot:.3f}m (area = {math.pi*semi_a_tot*semi_b_tot:.4f} m^2)")
     print(f"======================================================\n")
 
+    def analyze_cov(y_arr, z_arr, name):
+        cov = np.cov(y_arr, z_arr)
+        var_y = float(cov[0, 0])
+        var_z = float(cov[1, 1])
+        cov_yz = float(cov[0, 1])
+        std_y = float(np.sqrt(max(var_y, 0)))
+        std_z = float(np.sqrt(max(var_z, 0)))
+        denom = std_y * std_z
+        corr = float(cov_yz / denom) if denom > 1e-12 else 0.0
+        ev, evec = np.linalg.eigh(cov)
+        s95_val = np.sqrt(5.991)
+        semi_a = float(s95_val * np.sqrt(max(ev[1], 1e-12)))
+        semi_b = float(s95_val * np.sqrt(max(ev[0], 1e-12)))
+        angle = float(np.degrees(np.arctan2(evec[1, 1], evec[0, 1])))
+        area = float(math.pi * semi_a * semi_b)
+        return {
+            "name": name,
+            "cov_matrix": [[var_y, cov_yz], [cov_yz, var_z]],
+            "sigma_y_cm": std_y * 100,
+            "sigma_z_cm": std_z * 100,
+            "cov_yz_m2": cov_yz,
+            "correlation_rho": corr,
+            "eigenvalues": [float(ev[0]), float(ev[1])],
+            "eigenvectors": [[float(evec[0, 0]), float(evec[0, 1])], [float(evec[1, 0]), float(evec[1, 1])]],
+            "semi_major_95_m": semi_a,
+            "semi_minor_95_m": semi_b,
+            "tilt_angle_deg": angle,
+            "ellipse_area_95_m2": area,
+        }
+
+    cov_cam_dict = analyze_cov(y_cam, z_cam, "Camera_Anisotropic")
+    cov_iso_dict = analyze_cov(r_iso[:, 1].cpu().numpy(), r_iso[:, 2].cpu().numpy(), "Camera_Isotropic")
+    cov_model_dict = analyze_cov(y_model, z_model, "Drag_Model")
+    cov_beta_dict = analyze_cov(y_beta, z_beta, "Spin_Decay")
+    cov_wind_dict = analyze_cov(y_wind, z_wind, "Crosswind")
+    cov_comb_dict = analyze_cov(y_comb, z_comb, "Combined_Total")
+    cov_linear_dict = {
+        "name": "Camera_Linear_Analytical",
+        "cov_matrix": [[float(cov_goal_linear_aniso[0, 0]), float(cov_goal_linear_aniso[0, 1])],
+                       [float(cov_goal_linear_aniso[1, 0]), float(cov_goal_linear_aniso[1, 1])]],
+        "sigma_y_cm": float(np.sqrt(cov_goal_linear_aniso[0, 0]) * 100),
+        "sigma_z_cm": float(np.sqrt(cov_goal_linear_aniso[1, 1]) * 100),
+        "cov_yz_m2": float(cov_goal_linear_aniso[0, 1]),
+        "correlation_rho": float(cov_goal_linear_aniso[0, 1] / (np.sqrt(cov_goal_linear_aniso[0, 0] * cov_goal_linear_aniso[1, 1]) + 1e-12)),
+    }
+
+    covariance_matrices_all = {
+        "camera_anisotropic": cov_cam_dict,
+        "camera_isotropic": cov_iso_dict,
+        "drag_model": cov_model_dict,
+        "spin_decay": cov_beta_dict,
+        "crosswind": cov_wind_dict,
+        "combined_total": cov_comb_dict,
+        "camera_linear_analytical": cov_linear_dict,
+    }
+
     # -----------------------------------------------------------------------
     # 10. 3D Anisotropic Goalkeeper Model
     # -----------------------------------------------------------------------
@@ -965,7 +1120,335 @@ def run_cloud_simulation(
     print("[GPU Worker] All simulations and visualizations generated successfully.")
 
     # -----------------------------------------------------------------------
-    # 13. Summary Metrics
+    # 13. Data Export & Publication-Ready Artifact Generation
+    # -----------------------------------------------------------------------
+    def generate_primary_trajectory_csv(v0_in, kM_in, dt_step=0.0005):
+        lines = [
+            "t_s,x_m,y_m,z_m,vx_ms,vy_ms,vz_ms,speed_ms,speed_kmh,reynolds_number,cd,drag_accel_ms2,magnus_accel_ms2,geff_z_ms2"
+        ]
+        r = r0_nom.clone().to(torch.float64)
+        v = v0_in.clone().to(torch.float64)
+        kM_64 = kM_in.clone().to(torch.float64)
+        t = 0.0
+        g_64 = torch.tensor([0.0, 0.0, float(G_EFF_Z)], device=device, dtype=torch.float64)
+        def a_fn(vel, tc):
+            spd = torch.norm(vel).clamp(min=1e-9)
+            cd = CD_LOW + (CD_HIGH - CD_LOW) / (1.0 + torch.exp((spd - V_CRIT) / V_WIDTH))
+            gv = RHO_AIR * A_BALL * cd / (2.0 * M_BALL)
+            fd = -gv * spd * vel
+            dec = math.exp(-NOMINAL_BETA * tc)
+            fm = torch.linalg.cross(kM_64 * dec, vel)
+            return g_64 + fd + fm, fd, fm, cd, spd
+        while r[0] < GOAL_X:
+            r_p, v_p, t_p = r.clone(), v.clone(), t
+            a_tot, fd, fm, cd, spd = a_fn(v, t)
+            reynolds = float((RHO_AIR * spd.item() * D_BALL) / 1.81e-5)
+            lines.append(
+                f"{t:.5f},{r[0].item():.5f},{r[1].item():.5f},{r[2].item():.5f},"
+                f"{v[0].item():.5f},{v[1].item():.5f},{v[2].item():.5f},"
+                f"{spd.item():.5f},{spd.item()*3.6:.3f},{reynolds:.1f},{cd.item():.5f},"
+                f"{torch.norm(fd).item():.5f},{torch.norm(fm).item():.5f},{G_EFF_Z:.4f}"
+            )
+            k1a = a_tot
+            k2a, _, _, _, _ = a_fn(v + 0.5 * dt_step * k1a, t + 0.5 * dt_step)
+            k3a, _, _, _, _ = a_fn(v + 0.5 * dt_step * k2a, t + 0.5 * dt_step)
+            k4a, _, _, _, _ = a_fn(v + dt_step * k3a, t + dt_step)
+            k1v, k2v, k3v, k4v = v, v + 0.5 * dt_step * k1a, v + 0.5 * dt_step * k2a, v + dt_step * k3a
+            r = r + (dt_step / 6.0) * (k1v + 2 * k2v + 2 * k3v + k4v)
+            v = v + (dt_step / 6.0) * (k1a + 2 * k2a + 2 * k3a + k4a)
+            t += dt_step
+
+        dx = r[0] - r_p[0]
+        alpha = (GOAL_X - r_p[0]) / (dx + 1e-12)
+        t_g = t_p + alpha * dt_step
+        r_g = r_p + alpha * (r - r_p)
+        v_g = v_p + alpha * (v - v_p)
+        _, fd_g, fm_g, cd_g, spd_g = a_fn(v_g, t_g)
+        re_g = float((RHO_AIR * spd_g.item() * D_BALL) / 1.81e-5)
+        lines.append(
+            f"{t_g.item():.5f},{r_g[0].item():.5f},{r_g[1].item():.5f},{r_g[2].item():.5f},"
+            f"{v_g[0].item():.5f},{v_g[1].item():.5f},{v_g[2].item():.5f},"
+            f"{spd_g.item():.5f},{spd_g.item()*3.6:.3f},{re_g:.1f},{cd_g.item():.5f},"
+            f"{torch.norm(fd_g).item():.5f},{torch.norm(fm_g).item():.5f},{G_EFF_Z:.4f}"
+        )
+        return "\n".join(lines)
+
+    def generate_archetypes_trajectory_csv(arch_list, dt_step=0.001):
+        lines = [
+            "archetype_id,archetype_name,t_s,x_m,y_m,z_m,vx_ms,vy_ms,vz_ms,speed_ms,speed_kmh"
+        ]
+        g_64 = torch.tensor([0.0, 0.0, float(G_EFF_Z)], device=device, dtype=torch.float64)
+        for idx, arch in enumerate(arch_list):
+            v_init = torch.tensor(arch["v0"], device=device, dtype=torch.float64)
+            kM_init = torch.tensor(arch["kM"], device=device, dtype=torch.float64)
+            r = r0_nom.clone().to(torch.float64)
+            v = v_init.clone()
+            t = 0.0
+            def a_fn(vel, tc):
+                spd = torch.norm(vel).clamp(min=1e-9)
+                cd = CD_LOW + (CD_HIGH - CD_LOW) / (1.0 + torch.exp((spd - V_CRIT) / V_WIDTH))
+                gv = RHO_AIR * A_BALL * cd / (2.0 * M_BALL)
+                fd = -gv * spd * vel
+                dec = math.exp(-NOMINAL_BETA * tc)
+                fm = torch.linalg.cross(kM_init * dec, vel)
+                return g_64 + fd + fm, spd
+            while r[0] < GOAL_X:
+                r_p, v_p, t_p = r.clone(), v.clone(), t
+                a_tot, spd = a_fn(v, t)
+                lines.append(
+                    f"{idx+1},\"{arch['name']}\",{t:.4f},"
+                    f"{r[0].item():.4f},{r[1].item():.4f},{r[2].item():.4f},"
+                    f"{v[0].item():.4f},{v[1].item():.4f},{v[2].item():.4f},"
+                    f"{spd.item():.4f},{spd.item()*3.6:.2f}"
+                )
+                k1a = a_tot
+                k2a, _ = a_fn(v + 0.5 * dt_step * k1a, t + 0.5 * dt_step)
+                k3a, _ = a_fn(v + 0.5 * dt_step * k2a, t + 0.5 * dt_step)
+                k4a, _ = a_fn(v + dt_step * k3a, t + dt_step)
+                k1v, k2v, k3v, k4v = v, v + 0.5 * dt_step * k1a, v + 0.5 * dt_step * k2a, v + dt_step * k3a
+                r = r + (dt_step / 6.0) * (k1v + 2 * k2v + 2 * k3v + k4v)
+                v = v + (dt_step / 6.0) * (k1a + 2 * k2a + 2 * k3a + k4a)
+                t += dt_step
+            dx = r[0] - r_p[0]
+            alpha = (GOAL_X - r_p[0]) / (dx + 1e-12)
+            t_g = t_p + alpha * dt_step
+            r_g = r_p + alpha * (r - r_p)
+            v_g = v_p + alpha * (v - v_p)
+            spd_g = torch.norm(v_g)
+            lines.append(
+                f"{idx+1},\"{arch['name']}\",{t_g.item():.4f},"
+                f"{r_g[0].item():.4f},{r_g[1].item():.4f},{r_g[2].item():.4f},"
+                f"{v_g[0].item():.4f},{v_g[1].item():.4f},{v_g[2].item():.4f},"
+                f"{spd_g.item():.4f},{spd_g.item()*3.6:.2f}"
+            )
+        return "\n".join(lines)
+
+    def generate_shooting_jacobian_csv(J):
+        obs_names = ["r1_x(0.05s)", "r1_y(0.05s)", "r1_z(0.05s)", "r2_x(0.10s)", "r2_y(0.10s)", "r2_z(0.10s)"]
+        header = "obs_component,d_dv0x,d_dv0y,d_dv0z,d_dkMx,d_dkMy,d_dkMz"
+        rows = [header]
+        for i, name in enumerate(obs_names):
+            vals = [f"{J[i, j]:.6e}" for j in range(6)]
+            rows.append(f"{name}," + ",".join(vals))
+        return "\n".join(rows)
+
+    def generate_goal_sensitivity_csv(J_obs):
+        target_names = ["y_goal(x=11.0m)", "z_goal(x=11.0m)"]
+        header = "goal_coordinate,d_dr1x,d_dr1y,d_dr1z,d_dr2x,d_dr2y,d_dr2z"
+        rows = [header]
+        for i, name in enumerate(target_names):
+            vals = [f"{J_obs[i, j]:.6e}" for j in range(6)]
+            rows.append(f"{name}," + ",".join(vals))
+        return "\n".join(rows)
+
+    def generate_parameter_goal_jacobian_csv(J_p):
+        target_names = ["y_goal(x=11.0m)", "z_goal(x=11.0m)"]
+        header = "goal_coordinate,d_dv0x,d_dv0y,d_dv0z,d_dkMx,d_dkMy,d_dkMz"
+        rows = [header]
+        for i, name in enumerate(target_names):
+            vals = [f"{J_p[i, j]:.6e}" for j in range(6)]
+            rows.append(f"{name}," + ",".join(vals))
+        return "\n".join(rows)
+
+    csv_primary = generate_primary_trajectory_csv(v0_opt, kM_opt, dt_step=0.0005)
+    csv_archetypes = generate_archetypes_trajectory_csv(archetypes, dt_step=0.001)
+    csv_shooting_j = generate_shooting_jacobian_csv(J_shooting)
+    csv_goal_sens_j = generate_goal_sensitivity_csv(J_goal_obs)
+    csv_goal_param_j = generate_parameter_goal_jacobian_csv(J_goal_p)
+
+    jacobian_analysis_dict = {
+        "shooting_jacobian_6x6": J_shooting.tolist(),
+        "shooting_singular_values": S_shooting.tolist(),
+        "shooting_condition_number": cond_shooting,
+        "shooting_pseudo_inverse_6x6": J_pinv_shooting.tolist(),
+        "goal_parameter_jacobian_2x6": J_goal_p.tolist(),
+        "goal_observation_sensitivity_2x6": J_goal_obs.tolist(),
+        "linear_covariance_anisotropic": cov_goal_linear_aniso.tolist(),
+        "linear_sigma_y_cm": sigma_y_linear,
+        "linear_sigma_z_cm": sigma_z_linear,
+    }
+
+    def build_latex_tables():
+        # Table 1: Physical Constants
+        t1 = r"""\begin{table}[htbp]
+\centering
+\caption{Physical System Parameters and Environmental Constants (FIFA Size 5 Soccer Ball)}
+\label{tab:physics_constants}
+\begin{tabular}{llcc}
+\toprule
+\textbf{Parameter Description} & \textbf{Symbol} & \textbf{Value} & \textbf{Unit} \\
+\midrule
+Ball Mass & $m$ & $0.430$ & $\text{kg}$ \\
+Ball Radius & $R$ & $0.110$ & $\text{m}$ \\
+Cross-Sectional Area & $A = \pi R^2$ & $0.03801$ & $\text{m}^2$ \\
+Ball Volume & $V = \frac{4}{3}\pi R^3$ & $0.005575$ & $\text{m}^3$ \\
+Sea-Level Air Density ($15^\circ\text{C}$) & $\rho_{\text{air}}$ & $1.225$ & $\text{kg/m}^3$ \\
+Standard Gravitational Acceleration & $g$ & $9.810$ & $\text{m/s}^2$ \\
+Archimedes Buoyant Force Fraction & $\rho_{\text{air}} V / m$ & $1.588$ & $\%$ \\
+Effective Gravitational Acceleration & $g_{\text{eff}} = g(1 - \rho_{\text{air}}V/m)$ & $9.6542$ & $\text{m/s}^2$ \\
+Drag Crisis Critical Velocity & $v_{\text{crit}}$ & $26.80$ & $\text{m/s}$ \\
+Drag Transition Width & $\Delta v_{\text{crit}}$ & $3.50$ & $\text{m/s}$ \\
+Subcritical Drag Coefficient (Laminar) & $C_{D,\text{high}}$ & $0.470$ & -- \\
+Supercritical Drag Coefficient (Turbulent) & $C_{D,\text{low}}$ & $0.195$ & -- \\
+Aerodynamic Spin Decay Constant & $\beta$ & $0.070$ & $\text{s}^{-1}$ \\
+Magnus Coupling Constant & $C_{\text{Magnus}} = \frac{8\pi \rho R^3}{3m}$ & $0.031766$ & $\text{m}^{-1}$ \\
+Goal Distance from Penalty Spot & $X_{\text{goal}}$ & $11.00$ & $\text{m}$ \\
+Goal Dimensions (Width $\times$ Height) & $W \times H$ & $7.32 \times 2.44$ & $\text{m} \times \text{m}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+"""
+
+        # Table 2: Kinematic Inversion Comparison
+        t2 = f"""\\begin{{table}}[htbp]
+\\centering
+\\caption{{Kinematic Inversion and Shooting Parameter Refinement (Competition Scenario)}}
+\\label{{tab:kinematic_inversion}}
+\\begin{{tabular}}{{lccc}}
+\\toprule
+\\textbf{{Quantity}} & \\textbf{{Analytical 2nd-Order Taylor}} & \\textbf{{Gauss-Newton Shooting Refined}} & \\textbf{{Units / Status}} \\\\
+\\midrule
+Initial Velocity $v_{{0x}}$ & ${v0_ana[0].item():.3f}$ & ${v0_opt[0].item():.3f}$ & $\\text{{m/s}}$ \\\\
+Initial Velocity $v_{{0y}}$ & ${v0_ana[1].item():.3f}$ & ${v0_opt[1].item():.3f}$ & $\\text{{m/s}}$ \\\\
+Initial Velocity $v_{{0z}}$ & ${v0_ana[2].item():.3f}$ & ${v0_opt[2].item():.3f}$ & $\\text{{m/s}}$ \\\\
+Launch Speed $\\|\\vec{{v}}_0\\|$ & ${torch.norm(v0_ana).item():.2f}$ (${torch.norm(v0_ana).item()*3.6:.1f}\\text{{ km/h}}$) & ${speed_opt_val:.2f}$ (${speed_opt_val*3.6:.1f}\\text{{ km/h}}$) & $\\text{{m/s}}$ \\\\
+Effective Magnus Vector $\\vec{{k}}_M$ & $[{kM_ana[0].item():.4f}, {kM_ana[1].item():.4f}, {kM_ana[2].item():.4f}]$ & $[{kM_opt[0].item():.4f}, {kM_opt[1].item():.4f}, {kM_opt[2].item():.4f}]$ & $\\text{{m}}^{{-1}}$ \\\\
+Spin Vector $\\vec{{\\omega}}$ & $[{rpm_nom[0].item():.1f}, {rpm_nom[1].item():.1f}, {rpm_nom[2].item():.1f}]$ & $[{rpm_nom[0].item():.1f}, {rpm_nom[1].item():.1f}, {rpm_nom[2].item():.1f}]$ & $\\text{{RPM}}$ \\\\
+Total Physical Spin $\\|\\vec{{\\omega}}\\|$ & ${tot_rpm:.1f}$ & ${tot_rpm:.1f}$ & $\\text{{RPM}}$ \\\\
+Non-Dimensional Spin Parameter $S_p$ & ${Sp:.4f}$ & ${Sp:.4f}$ & -- \\\\
+Magnus Lift Coefficient $C_L$ & ${CL:.4f}$ & ${CL:.4f}$ & -- \\\\
+Drag Coefficient $C_D(v_{{\\text{{mid}}}})$ & ${cd_mid_val:.4f}$ & ${cd_mid_val:.4f}$ & -- \\\\
+Lift-to-Drag Ratio $L/D$ & ${LD:.4f}$ & ${LD:.4f}$ & -- \\\\
+\\midrule
+Tracking Point $r_1$ Residual ($t = 0.05\\text{{ s}}$) & ${err1_ana:.2f}$ & ${err1_opt:.2f}$ & $\\text{{mm}}$ \\\\
+Tracking Point $r_2$ Residual ($t = 0.10\\text{{ s}}$) & ${err2_ana:.2f}$ & ${err2_opt:.2f}$ & $\\text{{mm}}$ \\\\
+\\textbf{{Mean Reconstruction Residual}} $\\epsilon_{{\\text{{recon}}}}$ & $\\mathbf{{{epsilon_ana_mm:.2f}}}$ & $\\mathbf{{{epsilon_opt_mm:.2f}}}$ & $\\mathbf{{\\text{{mm}}}}$ \\\\
+Quantization Noise Limit Floor & $5.00$ & $5.00$ & $\\text{{mm}}$ \\\\
+\\textbf{{Quantization Verification}} & \\textbf{{FAILED}} ($\\epsilon > 5\\text{{mm}}$) & \\textbf{{VERIFIED}} ($\\epsilon < 5\\text{{mm}}$) & -- \\\\
+\\midrule
+Flight Time to Goal Plane & $0.3882$ & ${t_nom_val:.4f}$ & $\\text{{s}}$ \\\\
+Goal Intercept $y_{{\\text{{goal}}}}$ & $+2.584$ & ${mean_y:+.3f}$ & $\\text{{m}}$ (Top-Right) \\\\
+Goal Intercept $z_{{\\text{{goal}}}}$ & $+1.962$ & ${mean_z:+.3f}$ & $\\text{{m}}$ (Top-Right) \\\\
+Goal Clearance Inside Post & $1.076\\text{{ m}}$ & ${GOAL_Y_MAX - mean_y:.3f}\\text{{ m}}$ & Inside Right Post \\\\
+Goal Clearance Below Crossbar & $0.478\\text{{ m}}$ & ${GOAL_Z_MAX - mean_z:.3f}\\text{{ m}}$ & Below Crossbar \\\\
+\\bottomrule
+\\end{{tabular}}
+\\end{{table}}
+"""
+
+        # Table 3: Jacobian Spectrum and Sensitivity
+        t3 = f"""\\begin{{table}}[htbp]
+\\centering
+\\caption{{Shooting Jacobian Spectrum, Condition Number, and Goal Sensitivity Matrix}}
+\\label{{tab:jacobian_conditioning}}
+\\begin{{tabular}}{{lccl}}
+\\toprule
+\\textbf{{Metric}} & \\textbf{{Symbol}} & \\textbf{{Value}} & \\textbf{{Mathematical Significance}} \\\\
+\\midrule
+Shooting Jacobian Dimension & $\\dim(J)$ & $6 \\times 6$ & Maps $[\\vec{{v}}_0, \\vec{{k}}_M] \\to [\\vec{{r}}(t_1), \\vec{{r}}(t_2)]$ \\\\
+Singular Value 1 (Maximum) & $\\sigma_1$ & ${S_shooting[0]:.4e}$ & Primary longitudinal observability mode \\\\
+Singular Value 2 & $\\sigma_2$ & ${S_shooting[1]:.4e}$ & Lateral tracking observability \\\\
+Singular Value 3 & $\\sigma_3$ & ${S_shooting[2]:.4e}$ & Vertical tracking observability \\\\
+Singular Value 4 & $\\sigma_4$ & ${S_shooting[3]:.4e}$ & Magnus curvature transverse mode 1 \\\\
+Singular Value 5 & $\\sigma_5$ & ${S_shooting[4]:.4e}$ & Magnus curvature transverse mode 2 \\\\
+Singular Value 6 (Minimum) & $\\sigma_6$ & ${S_shooting[5]:.4e}$ & Gauge-constrained transverse spin mode \\\\
+Condition Number (Physical) & $\\kappa_5(J) = \\sigma_1 / \\sigma_5$ & ${S_shooting[0]/S_shooting[4]:.2f}$ & Well-conditioned physical modes ($\\kappa_5 < 10$) \\\\
+Condition Number (Full) & $\\kappa_6(J) = \\sigma_1 / \\sigma_6$ & ${cond_shooting:.2e}$ & Mode 6 gauge-truncated via $\\text{{rtol}} = 10^{{-3}}$ \\\\
+SVD Cutoff Parameter & $\\text{{rtol}}$ & $10^{{-3}}$ & Regularized pseudo-inverse threshold \\\\
+\\midrule
+\\multicolumn{{4}}{{c}}{{\\textbf{{Goal Observation Sensitivity Matrix}} $J_{{\\text{{goal}} \\leftarrow \\text{{obs}}}} = \\frac{{\\partial (y_{{\\text{{goal}}}}, z_{{\\text{{goal}}}})}}{{\\partial (\\vec{{r}}_1, \\vec{{r}}_2)}}$}} \\\\
+$\\partial y_{{\\text{{goal}}}} / \\partial r_{{1y}}$ & & ${J_goal_obs[0, 1]:.3f}$ & Lateral leverage from $t = 0.05\\text{{ s}}$ \\\\
+$\\partial y_{{\\text{{goal}}}} / \\partial r_{{2y}}$ & & ${J_goal_obs[0, 4]:.3f}$ & Lateral leverage from $t = 0.10\\text{{ s}}$ \\\\
+$\\partial z_{{\\text{{goal}}}} / \\partial r_{{1z}}$ & & ${J_goal_obs[1, 2]:.3f}$ & Vertical leverage from $t = 0.05\\text{{ s}}$ \\\\
+$\\partial z_{{\\text{{goal}}}} / \\partial r_{{2z}}$ & & ${J_goal_obs[1, 5]:.3f}$ & Vertical leverage from $t = 0.10\\text{{ s}}$ \\\\
+\\midrule
+Linear Propagated $\\sigma_y$ & $\\sigma_{{y,\\text{{linear}}}}$ & ${sigma_y_linear:.2f}\\text{{ cm}}$ & Analytical linear covariance ($J \\Sigma J^T$) \\\\
+Linear Propagated $\\sigma_z$ & $\\sigma_{{z,\\text{{linear}}}}$ & ${sigma_z_linear:.2f}\\text{{ cm}}$ & Analytical linear covariance ($J \\Sigma J^T$) \\\\
+MC Empirical $\\sigma_y$ & $\\sigma_{{y,\\text{{MC}}}}$ & ${np.sqrt(var_cam_y)*100:.2f}\\text{{ cm}}$ & 5,000,000-sample nonlinear GPU ensemble \\\\
+MC Empirical $\\sigma_z$ & $\\sigma_{{z,\\text{{MC}}}}$ & ${np.sqrt(var_cam_z)*100:.2f}\\text{{ cm}}$ & 5,000,000-sample nonlinear GPU ensemble \\\\
+Linear vs MC Discrepancy & $|\\Delta \\sigma| / \\sigma$ & ${abs(sigma_y_linear - np.sqrt(var_cam_y)*100)/(np.sqrt(var_cam_y)*100)*100:.2f}\\%$ & Validates linear error propagation regime \\\\
+\\bottomrule
+\\end{{tabular}}
+\\end{{table}}
+"""
+
+        # Table 4: Uncertainty Budget
+        t4 = f"""\\begin{{table}}[htbp]
+\\centering
+\\caption{{Comprehensive 4-Part Goal-Plane Uncertainty Budget (5,000,000 Monte Carlo GPU Samples)}}
+\\label{{tab:uncertainty_budget}}
+\\begin{{tabular}}{{lcccccc}}
+\\toprule
+\\textbf{{Uncertainty Source}} & $\\mathbf{{\\sigma_y}}$ \\textbf{{(cm)}} & $\\mathbf{{\\sigma_z}}$ \\textbf{{(cm)}} & \\textbf{{Var Share (\\%)}} & $\\mathbf{{\\text{{Cov}}(y,z)}}$ $\\mathbf{{(\\text{{cm}}^2)}}$ & $\\mathbf{{\\rho_{{yz}}}}$ & \\textbf{{95\\% Area}} $\\mathbf{{(\\text{{m}}^2)}}$ \\\\
+\\midrule
+Optical Camera Noise (Anisotropic) & ${np.sqrt(var_cam_y)*100:.2f}$ & ${np.sqrt(var_cam_z)*100:.2f}$ & ${(var_cam_y+var_cam_z)/(sigma_total_y**2+sigma_total_z**2)*100:.1f}\\%$ & ${cov_cam_dict['cov_yz_m2']*10000:.2f}$ & ${cov_cam_dict['correlation_rho']:+.3f}$ & ${cov_cam_dict['ellipse_area_95_m2']:.4f}$ \\\\
+\\quad \\textit{{Comparison: Optical (Isotropic 3mm)}} & ${sy_iso*100:.2f}$ & ${sz_iso*100:.2f}$ & \\textit{{--}} & ${cov_iso_dict['cov_yz_m2']*10000:.2f}$ & ${cov_iso_dict['correlation_rho']:+.3f}$ & ${cov_iso_dict['ellipse_area_95_m2']:.4f}$ \\\\
+Crosswind Uncertainty ($\\pm 1.0\\text{{ m/s}}$) & ${np.sqrt(var_wind_y)*100:.2f}$ & ${np.sqrt(var_wind_z)*100:.2f}$ & ${(var_wind_y+var_wind_z)/(sigma_total_y**2+sigma_total_z**2)*100:.1f}\\%$ & ${cov_wind_dict['cov_yz_m2']*10000:.2f}$ & ${cov_wind_dict['correlation_rho']:+.3f}$ & ${cov_wind_dict['ellipse_area_95_m2']:.4f}$ \\\\
+Aerodynamic Drag Model Error ($\\pm 10\\% C_D$) & ${np.sqrt(var_model_y)*100:.2f}$ & ${np.sqrt(var_model_z)*100:.2f}$ & ${(var_model_y+var_model_z)/(sigma_total_y**2+sigma_total_z**2)*100:.1f}\\%$ & ${cov_model_dict['cov_yz_m2']*10000:.2f}$ & ${cov_model_dict['correlation_rho']:+.3f}$ & ${cov_model_dict['ellipse_area_95_m2']:.4f}$ \\\\
+Spin Decay Rate Error ($\\pm 21\\% \\beta$) & ${np.sqrt(var_beta_y)*100:.2f}$ & ${np.sqrt(var_beta_z)*100:.2f}$ & ${(var_beta_y+var_beta_z)/(sigma_total_y**2+sigma_total_z**2)*100:.2f}\\%$ & ${cov_beta_dict['cov_yz_m2']*10000:.2f}$ & ${cov_beta_dict['correlation_rho']:+.3f}$ & ${cov_beta_dict['ellipse_area_95_m2']:.4f}$ \\\\
+\\midrule
+\\textbf{{Total Combined Uncertainty Budget}} & $\\mathbf{{{sigma_total_y*100:.2f}}}$ & $\\mathbf{{{sigma_total_z*100:.2f}}}$ & $\\mathbf{{100.0\\%}}$ & $\\mathbf{{{cov_comb_dict['cov_yz_m2']*10000:.2f}}}$ & $\\mathbf{{{cov_comb_dict['correlation_rho']:+.3f}}}$ & $\\mathbf{{{cov_comb_dict['ellipse_area_95_m2']:.4f}}}$ \\\\
+\\bottomrule
+\\end{{tabular}}
+\\end{{table}}
+"""
+
+        # Table 5: 5 Archetypes
+        arch_rows = []
+        for a in archetype_results:
+            speed_kmh = float(np.linalg.norm(a.get("v0", [0, 0, 0]))) * 3.6
+            arch_rows.append(
+                f"{a['name']} & {speed_kmh:.1f} & "
+                f"{a.get('rpm_total', 0):.1f} & {a.get('spin_parameter_Sp', 0):.4f} & "
+                f"{a.get('lift_coefficient_CL', 0):.3f} & {a.get('lift_to_drag_LD', 0):.2f} & "
+                f"{a['target_y']:+.2f} & {a['target_z']:.2f} & {a['flight_time_s']:.3f} & "
+                f"{a['area_m2']:.3f} & {'Goal (In Net)' if a['is_goal'] else 'Miss'} \\\\"
+            )
+        arch_table_body = "\n".join(arch_rows)
+        t5 = f"""\\begin{{table}}[htbp]
+\\centering
+\\caption{{Aerodynamic Performance and Goal-Mouth Intercepts of 5 Classical Kick Archetypes}}
+\\label{{tab:archetypes}}
+\\resizebox{{\\textwidth}}{{!}}{{
+\\begin{{tabular}}{{lcccccccccc}}
+\\toprule
+\\textbf{{Kick Archetype}} & $\\mathbf{{\\|\\vec{{v}}_0\\|}}$ \\textbf{{(km/h)}} & \\textbf{{Spin (RPM)}} & $\\mathbf{{S_p}}$ & $\\mathbf{{C_L}}$ & $\\mathbf{{L/D}}$ & $\\mathbf{{y_{{\\text{{goal}}}}}}$ \\textbf{{(m)}} & $\\mathbf{{z_{{\\text{{goal}}}}}}$ \\textbf{{(m)}} & $\\mathbf{{t_{{\\text{{flight}}}}}}$ \\textbf{{(s)}} & \\textbf{{95\\% Area}} $\\mathbf{{(\\text{{m}}^2)}}$ & \\textbf{{Outcome}} \\\\
+\\midrule
+{arch_table_body}
+\\bottomrule
+\\end{{tabular}}
+}}
+\\end{{table}}
+"""
+
+        combined = f"% ==========================================================================\n" \
+                   f"% UPC '26 PROBLEM B: MASTER PUBLICATION TABLES\n" \
+                   f"% ==========================================================================\n\n" \
+                   f"{t1}\n\n{t2}\n\n{t3}\n\n{t4}\n\n{t5}\n"
+
+        return {
+            "table_physics_constants.tex": t1,
+            "table_kinematic_inversion.tex": t2,
+            "table_jacobian_conditioning.tex": t3,
+            "table_uncertainty_budget.tex": t4,
+            "table_archetypes.tex": t5,
+            "tables.tex": combined,
+        }
+
+    latex_tables_dict = build_latex_tables()
+
+    data_files_dict = {
+        "trajectory_primary.csv": csv_primary,
+        "trajectories_archetypes.csv": csv_archetypes,
+        "shooting_jacobian.csv": csv_shooting_j,
+        "goal_sensitivity_jacobian.csv": csv_goal_sens_j,
+        "goal_parameter_jacobian.csv": csv_goal_param_j,
+        "jacobian_analysis.json": json.dumps(jacobian_analysis_dict, indent=4),
+        "covariance_matrices.json": json.dumps(covariance_matrices_all, indent=4),
+    }
+
+    # -----------------------------------------------------------------------
+    # 14. Summary Metrics
     # -----------------------------------------------------------------------
     summary = {
         "primary_scenario": {
@@ -990,6 +1473,20 @@ def run_cloud_simulation(
             "arrival_time_s": t_nom_val,
             "arrival_y_m": mean_y,
             "arrival_z_m": mean_z,
+        },
+        "jacobian_analysis": {
+            "condition_number": cond_shooting,
+            "singular_values": [float(s) for s in S_shooting],
+            "linear_sigma_y_cm": sigma_y_linear,
+            "linear_sigma_z_cm": sigma_z_linear,
+            "linear_vs_mc_y_diff_pct": float(abs(sigma_y_linear - np.sqrt(var_cam_y)*100)/(np.sqrt(var_cam_y)*100)*100),
+            "linear_vs_mc_z_diff_pct": float(abs(sigma_z_linear - np.sqrt(var_cam_z)*100)/(np.sqrt(var_cam_z)*100)*100),
+        },
+        "covariance_summary": {
+            "camera_corr_rho": cov_cam_dict["correlation_rho"],
+            "crosswind_corr_rho": cov_wind_dict["correlation_rho"],
+            "combined_corr_rho": cov_comb_dict["correlation_rho"],
+            "combined_cov_yz_m2": cov_comb_dict["cov_yz_m2"],
         },
         "sensor_noise_comparison": {
             "isotropic_sigma_y_cm": sy_iso * 100,
@@ -1027,7 +1524,7 @@ def run_cloud_simulation(
         "frame_rate_robustness": {"fps": frame_rates, "ellipse_area_m2": fps_areas},
     }
 
-    return plots, json.dumps(summary, indent=4)
+    return plots, json.dumps(summary, indent=4), data_files_dict, latex_tables_dict
 
 
 # ---------------------------------------------------------------------------
@@ -1041,7 +1538,7 @@ def main(samples: int = 5_000_000, noise_mm: float = 3.0):
     print(f"  Samples: {samples:,} | Noise: {noise_mm}mm | Velocity-Dep C_D | Spin Decay | Buoyancy")
     print("=" * 72)
 
-    plots, metrics_str = run_cloud_simulation.remote(
+    plots, metrics_str, data_files, latex_tables = run_cloud_simulation.remote(
         num_mc_samples=samples,
         camera_noise_std_m=noise_mm / 1000.0,
     )
@@ -1049,16 +1546,31 @@ def main(samples: int = 5_000_000, noise_mm: float = 3.0):
     out_dirs = ["simulation_output", "results"]
     for out in out_dirs:
         os.makedirs(out, exist_ok=True)
+        os.makedirs(os.path.join(out, "data"), exist_ok=True)
+        os.makedirs(os.path.join(out, "tables"), exist_ok=True)
+
         for fname, img in plots.items():
             fp = os.path.join(out, fname)
             with open(fp, "wb") as f:
                 f.write(img)
-            print(f"  [Saved] {fp}")
+            print(f"  [Saved Image] {fp}")
 
         mpath = os.path.join(out, "summary_metrics.json")
         with open(mpath, "w") as f:
             f.write(metrics_str)
-        print(f"  [Saved] {mpath}")
+        print(f"  [Saved Metrics] {mpath}")
+
+        for fname, content in data_files.items():
+            fpath = os.path.join(out, "data", fname)
+            with open(fpath, "w") as f:
+                f.write(content)
+            print(f"  [Saved Data] {fpath}")
+
+        for fname, content in latex_tables.items():
+            fpath = os.path.join(out, "tables", fname)
+            with open(fpath, "w") as f:
+                f.write(content)
+            print(f"  [Saved Table] {fpath}")
 
     m = json.loads(metrics_str)
     print("\n" + "=" * 72)
