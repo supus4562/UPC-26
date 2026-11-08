@@ -1,0 +1,84 @@
+{
+  "sigma_horizontal_m": 0.12332798453056681,
+  "sigma_vertical_m": 0.1332959192590477,
+  "radial_rms_uncertainty_m": 0.18159733990201038,
+  "radial_95_radius_m": 0.31452388216638183,
+  "mean_crossing_m": [
+    -2.6287332579471836,
+    1.958993600376824
+  ],
+  "approximate_mode_crossing_m": [
+    -2.6263786151590804,
+    1.9415704244207401
+  ],
+  "mode_bandwidth_m": 0.05,
+  "covariance_m2": [
+    [
+      0.015209791768371726,
+      -0.0003925660434269007
+    ],
+    [
+      -0.00039256604342690076,
+      0.017767802091114566
+    ]
+  ],
+  "marginal_95_percent_m": {
+    "x_right": [
+      -2.8941962679557878,
+      -2.438365231249959
+    ],
+    "z_up": [
+      1.6796777051203087,
+      2.2135484792218967
+    ]
+  },
+  "joint_95_percent_ellipse": {
+    "center": [
+      -2.6287332579471836,
+      1.958993600376824
+    ],
+    "semi_axes_m": [
+      0.32750955770935297,
+      0.30193110026760783
+    ],
+    "major_axis_unit_vector": [
+      -0.1483519323530799,
+      0.9889346308867474
+    ]
+  },
+  "method": "linear",
+  "posterior_ess": 491.9902715811106,
+  "proposal_samples": 16384,
+  "bounded_proposals": 4560,
+  "goal_valid_proposals": 3093,
+  "best_observation_chi2": 0.3253395087600776,
+  "optimizer_successes": 4,
+  "measurement_sigma_m": 0.002886751345948129,
+  "event_scan_step_s": 0.02,
+  "warnings": [],
+  "uncertainty_scope": "Measurement noise and launch ambiguity; excludes approximation error",
+  "conditioned_on": "Goal entry under approximate dynamics and bounded launch prior",
+  "output_axes": [
+    "y_left",
+    "z_up"
+  ],
+  "mean_output_m": [
+    2.6287332579471836,
+    1.958993600376824
+  ],
+  "mode_output_m": [
+    2.6263786151590804,
+    1.9415704244207401
+  ],
+  "output_covariance_m2": [
+    [
+      0.015209791768371726,
+      0.0003925660434269007
+    ],
+    [
+      0.00039256604342690076,
+      0.017767802091114566
+    ]
+  ],
+  "internal_report_frame": "Team 358 X_right,Z_up"
+}

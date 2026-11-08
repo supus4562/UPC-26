@@ -1,0 +1,87 @@
+{
+  "method": "taylor",
+  "frame": [
+    "paper_X_right",
+    "Z_up"
+  ],
+  "split": {
+    "version": 1,
+    "source_sha256": "a90ca8cc9cf32a1cc8ef149ae4f4c5bce2222335fac094401e74eb678e0b4e6c",
+    "seed": 42,
+    "train_fraction": 0.8,
+    "train_rows": 63914,
+    "train_sha256": "e5914ba671ad894d23893404c2fb85905df135d7db207113d5350e5174782094",
+    "test_rows": 15979,
+    "test_sha256": "affad316537ec73597c38697f933cdc46aecee8275350a8bfbe8c7e91466956c"
+  },
+  "requested": 15979,
+  "successful": 15979,
+  "failed": 0,
+  "failure_examples": [],
+  "metrics_on_successful_queries": {
+    "evaluated": 15979,
+    "mean_crossing": {
+      "mse_horizontal_m2": 1.0784817262637652,
+      "mse_vertical_m2": 0.18514161609000201,
+      "mse_per_coordinate_m2": 0.6318116711768835,
+      "radial_mse_m2": 1.263623342353767,
+      "rmse_horizontal_m": 1.0384997478400104,
+      "rmse_vertical_m": 0.4302808572200279,
+      "radial_rmse_m": 1.1241100223526908,
+      "mean_radial_error_m": 0.765532581356457
+    },
+    "uncertainty": {
+      "sigma_horizontal_m": {
+        "mean": 0.20106078625258336,
+        "median": 0.13622418261102465
+      },
+      "sigma_vertical_m": {
+        "mean": 0.18758093902514145,
+        "median": 0.15395510738404644
+      },
+      "radial_rms_uncertainty_m": {
+        "mean": 0.28567062506098906,
+        "median": 0.2175567969254048
+      },
+      "radial_95_radius_m": {
+        "mean": 0.49425912369082536,
+        "median": 0.38308106536632436
+      },
+      "marginal_95_width_m": {
+        "horizontal": 0.7197435440910723,
+        "vertical": 0.6732992441388012
+      }
+    },
+    "marginal_95_coverage": {
+      "horizontal": 0.4241191563927655,
+      "vertical": 0.7558044933975844
+    },
+    "radial_95_coverage": 0.48513674197384066,
+    "ellipse_95": {
+      "available": 14061,
+      "availability_rate": 0.8799674572876901,
+      "covered": 7217,
+      "coverage_when_available": 0.51326363701017,
+      "coverage_all_queries": 0.4516552975780712,
+      "coverage_all_requested": 0.4516552975780712,
+      "mean_area_m2": 1.1051227799252021
+    },
+    "posterior_sampling": {
+      "median_ess": 30.22391057525875,
+      "minimum_ess": 1.0,
+      "fraction_ess_below_100": 0.9058764628575005
+    }
+  },
+  "test_noise_sigma_m": 0.002886751345948129,
+  "settings": {
+    "sigma": 0.002886751345948129,
+    "samples": 4096,
+    "starts": 4,
+    "mode": false,
+    "event_step": 0.02
+  },
+  "seed": 42,
+  "elapsed_seconds": 982.1549496999942,
+  "per_shot_records": null,
+  "interpretation": "Errors exclude failed predictions; compare success rate too. Low ESS results are provisional."
+}
