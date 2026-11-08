@@ -1,0 +1,187 @@
+{
+  "bayes": {
+    "conditioned_on": "airborne goal entry under the generator's launch distribution",
+    "goal_coordinates": [
+      "x_right_m",
+      "z_up_m"
+    ],
+    "retained_shots": 63914,
+    "measurement_sigma_m": 0.002886751345948129,
+    "effective_sigma_m": 0.04072696258478093,
+    "additional_smoothing_sigma_m": 0.04062452643476367,
+    "measurement_only_ess": 1.0000072086706844,
+    "effective_sample_size": 29.999999999880195,
+    "nearest_observation_distance_m": 0.02689768670454104,
+    "nearest_observation_error_m": [
+      0.005862389000910018,
+      0.005333956613308599,
+      -0.009148162850087183,
+      0.01418654845769507,
+      0.007171324690243619,
+      -0.018008106886006958
+    ],
+    "centimetre_rounding_box_matches": 0,
+    "warnings": [
+      "Low support at the requested measurement noise.",
+      "Adaptive smoothing broadens the likelihood and can bias the prediction.",
+      "The closest simulated observation is over five combined noise units away."
+    ],
+    "sigma_horizontal_m": 0.37209574725654143,
+    "sigma_vertical_m": 0.26225385539450985,
+    "radial_rms_uncertainty_m": 0.45522777792626895,
+    "radial_95_radius_m": 0.7172188595118606,
+    "mean_crossing_m": [
+      -2.940892586848187,
+      1.904353432403496
+    ],
+    "approximate_mode_crossing_m": [
+      -2.5246170761175217,
+      1.9372538025653352
+    ],
+    "mode_bandwidth_m": 0.05,
+    "covariance_m2": [
+      [
+        0.13845524512640398,
+        0.015384028107065344
+      ],
+      [
+        0.015384028107065342,
+        0.06877708466928448
+      ]
+    ],
+    "marginal_95_percent_m": {
+      "x_right": [
+        -3.595267099055686,
+        -2.3600576197176997
+      ],
+      "z_up": [
+        1.3971240735232637,
+        2.4091528630310743
+      ]
+    },
+    "joint_95_percent_ellipse": {
+      "center": [
+        -2.940892586848187,
+        1.904353432403496
+      ],
+      "semi_axes_m": [
+        0.7818481751337208,
+        0.5316943430646067
+      ],
+      "major_axis_unit_vector": [
+        -0.9784639728994778,
+        -0.20641766818218274
+      ]
+    },
+    "method": "adaptive_bayes",
+    "output_axes": [
+      "y_left",
+      "z_up"
+    ],
+    "mean_output_m": [
+      2.940892586848187,
+      1.904353432403496
+    ],
+    "mode_output_m": [
+      2.5246170761175217,
+      1.9372538025653352
+    ],
+    "output_covariance_m2": [
+      [
+        0.13845524512640398,
+        -0.015384028107065344
+      ],
+      [
+        -0.015384028107065342,
+        0.06877708466928448
+      ]
+    ],
+    "internal_report_frame": "Team 358 x_right,z_up"
+  },
+  "cgmm": {
+    "conditioned_on": "airborne goal entry under the generator's launch distribution",
+    "goal_coordinates": [
+      "x_right_m",
+      "z_up_m"
+    ],
+    "retained_shots": 63914,
+    "measurement_sigma_m": 0.002886751345948129,
+    "components": 16,
+    "fit_converged": true,
+    "nearest_observation_distance_m": null,
+    "cgmm_draw_fraction_inside_goal": 1.0,
+    "cgmm_draws_used": 10000,
+    "warnings": [],
+    "sigma_horizontal_m": 0.1354536191261591,
+    "sigma_vertical_m": 0.1214850121710636,
+    "radial_rms_uncertainty_m": 0.18195134271716173,
+    "radial_95_radius_m": 0.3143580744605796,
+    "mean_crossing_m": [
+      -2.6452360312165184,
+      1.9137770690837808
+    ],
+    "approximate_mode_crossing_m": [
+      -2.6531285859128086,
+      1.9149366937545922
+    ],
+    "mode_bandwidth_m": 0.05,
+    "covariance_m2": [
+      [
+        0.01834768293437458,
+        0.00015066842937229056
+      ],
+      [
+        0.00015066842937229059,
+        0.01475860818220347
+      ]
+    ],
+    "marginal_95_percent_m": {
+      "x_right": [
+        -2.9082163698236445,
+        -2.3760815584376944
+      ],
+      "z_up": [
+        1.6773926562611743,
+        2.148792589447978
+      ]
+    },
+    "joint_95_percent_ellipse": {
+      "center": [
+        -2.6452360312165184,
+        1.9137770690837808
+      ],
+      "semi_axes_m": [
+        0.3312862950747458,
+        0.29700784931655005
+      ],
+      "major_axis_unit_vector": [
+        -0.9991230975307452,
+        -0.041869272510624576
+      ]
+    },
+    "method": "conditional_gaussian_mixture",
+    "output_axes": [
+      "y_left",
+      "z_up"
+    ],
+    "mean_output_m": [
+      2.6452360312165184,
+      1.9137770690837808
+    ],
+    "mode_output_m": [
+      2.6531285859128086,
+      1.9149366937545922
+    ],
+    "output_covariance_m2": [
+      [
+        0.01834768293437458,
+        -0.00015066842937229056
+      ],
+      [
+        -0.00015066842937229059,
+        0.01475860818220347
+      ]
+    ],
+    "internal_report_frame": "Team 358 x_right,z_up"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "training_rows": 63914,
+  "components": 16,
+  "min_ess": 30,
+  "cgmm_converged": true,
+  "seed": 42,
+  "split": {
+    "version": 1,
+    "source_sha256": "a90ca8cc9cf32a1cc8ef149ae4f4c5bce2222335fac094401e74eb678e0b4e6c",
+    "seed": 42,
+    "train_fraction": 0.8,
+    "train_rows": 63914,
+    "train_sha256": "e5914ba671ad894d23893404c2fb85905df135d7db207113d5350e5174782094",
+    "test_rows": 15979,
+    "test_sha256": "affad316537ec73597c38697f933cdc46aecee8275350a8bfbe8c7e91466956c"
+  }
+}

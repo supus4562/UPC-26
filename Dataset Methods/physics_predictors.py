@@ -120,9 +120,14 @@ def summarize(points, weights, mode_bandwidth):
                  "semi_axes_m": np.sqrt(threshold*eigenvalues[::-1]).tolist(),
                  "major_axis_unit_vector": eigenvectors[:, -1].tolist()}
 
+    radius = np.linalg.norm(centered, axis=1)
     return {
+        "sigma_horizontal_m": float(np.sqrt(covariance[0,0])),
+        "sigma_vertical_m": float(np.sqrt(covariance[1,1])),
+        "radial_rms_uncertainty_m": float(np.sqrt(np.trace(covariance))),
+        "radial_95_radius_m": float(weighted_quantile(radius, weights, [.95])[0]),
         "mean_crossing_m": mean.tolist(),
-        "approximate_mode_crossing_m": density_mode(points, weights, mode_bandwidth, mean).tolist(),
+        "approximate_mode_crossing_m": (density_mode(points, weights, mode_bandwidth, mean).tolist() if mode_bandwidth else None),
         "mode_bandwidth_m": mode_bandwidth,
         "covariance_m2": covariance.tolist(),
         "marginal_95_percent_m": {
@@ -132,36 +137,7 @@ def summarize(points, weights, mode_bandwidth):
         "joint_95_percent_ellipse": joint,
     }
 
-def train_cgmm():
-    from sklearn.mixture import GaussianMixture
-
-    parser = argparse.ArgumentParser(description="Fit and save a CGMM for repeated queries.")
-    parser.add_argument("--dataset", type=Path, required=True)
-    parser.add_argument("--model", type=Path, required=True, help="Output .npz path")
-    parser.add_argument("--components", type=int, default=16)
-    args = parser.parse_args(sys.argv[2:])
-    if args.components < 1 or args.model.suffix.lower() != ".npz":
-        parser.error("Use a positive component count and a .npz model path.")
-    try:
-        observations, points = load_kicks(args.dataset)
-        joint = np.column_stack((observations, points))
-        center = joint.mean(axis=0)
-        scale = joint.std(axis=0)
-        scale[scale == 0] = 1
-        mixture = GaussianMixture(n_components=args.components, covariance_type="full",
-                                  reg_covar=1e-6, random_state=42, n_init=2,
-                                  max_iter=300).fit((joint-center)/scale)
-        np.savez_compressed(args.model, version=1, center=center, scale=scale,
-                            weights=mixture.weights_, means=mixture.means_,
-                            covariances=mixture.covariances_, converged=mixture.converged_,
-                            retained_shots=len(points))
-    except (OSError, ValueError) as exc:
-        parser.error(str(exc))
-    print(f"Saved {args.components}-component model to {args.model} "
-          f"({len(points):,} shots, converged={mixture.converged_}).")
-
-
-def predict_cgmm(model_path, observations, measured, sigma, bandwidth):
+def predict_cgmm(model_path, observations, measured, sigma, bandwidth, draws_count=10000, seed=42):
     with np.load(model_path, allow_pickle=False) as saved:
         try:
             if saved["version"].item() != 1:
@@ -187,8 +163,8 @@ def predict_cgmm(model_path, observations, measured, sigma, bandwidth):
         covariances.append((conditional+conditional.T)/2)
 
     component_weights = np.exp(log_weights-logsumexp(log_weights))
-    rng = np.random.default_rng(42)
-    counts = rng.multinomial(40000, component_weights)
+    rng = np.random.default_rng(seed)
+    counts = rng.multinomial(draws_count, component_weights)
     draws = np.concatenate([rng.multivariate_normal(mean, cov, size=count)
                             for mean, cov, count in zip(means, covariances, counts) if count])
     draws = center[6:]+draws*scale[6:]
@@ -264,74 +240,3 @@ def plot_crossing(points, weights, report, method, frame, path, show):
         plt.show()
     plt.close(fig)
 
-
-def main():
-    if sys.argv[1:2] == ["train"]:
-        train_cgmm()
-        return
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dataset", type=Path, help="Parquet folder required for Bayesian conditioning")
-    parser.add_argument("--model", type=Path, help="Saved .npz from predict.py train")
-    parser.add_argument("--r1", required=True, nargs=3, type=float, help="Position at 0.05 s")
-    parser.add_argument("--r2", required=True, nargs=3, type=float, help="Position at 0.10 s")
-    parser.add_argument("--frame", choices=("problem", "paper"), default="problem",
-                        help="Input frame. Problem coordinates are forward, left, up.")
-    parser.add_argument("--sigma", type=float, default=.005/np.sqrt(3),
-                        help="Independent measurement error standard deviation in metres")
-    parser.add_argument("--adaptive", action="store_true",
-                        help="Broaden likelihood as needed to reach --min-ess")
-    parser.add_argument("--min-ess", type=float, default=30)
-    parser.add_argument("--mode-bandwidth", type=float, default=.05)
-    parser.add_argument("--method", choices=("bayes", "cgmm", "both"), default="bayes")
-    parser.add_argument("--output-frame", choices=("problem", "paper"), default="problem")
-    parser.add_argument("--plot", type=Path, help="PNG path; adds method suffixes for both")
-    parser.add_argument("--show", action="store_true", help="Open the Matplotlib plot window")
-    args = parser.parse_args()
-    if args.method in ("bayes", "both") and args.dataset is None:
-        parser.error("--dataset is required for Bayesian conditioning.")
-    if args.method in ("cgmm", "both") and args.model is None:
-        parser.error("--model is required for CGMM. Run predict.py train first.")
-    if args.adaptive and args.method == "cgmm":
-        parser.error("--adaptive applies to Bayesian conditioning only.")
-    if (not np.isfinite([*args.r1, *args.r2, args.sigma, args.min_ess, args.mode_bandwidth]).all()
-            or args.sigma <= 0 or args.min_ess < 1 or args.mode_bandwidth <= 0):
-        parser.error("Supply finite coordinates, positive noise and bandwidth, and min ESS >= 1.")
-    measured = np.array([args.r1, args.r2])
-    if args.frame == "problem":
-        measured = measured[:, [1, 0, 2]]*[-1, 1, 1]
-    try:
-        observations, points = load_kicks(args.dataset) if args.dataset else (None, None)
-        methods = ("bayes", "cgmm") if args.method == "both" else (args.method,)
-        reports = {}
-        for method in methods:
-            if method == "bayes":
-                report, weights = predict(observations, points, measured.ravel(), args.sigma,
-                                          args.min_ess, args.adaptive, args.mode_bandwidth)
-                crossings = points
-            else:
-                report, crossings, weights = predict_cgmm(
-                    args.model, observations, measured.ravel(), args.sigma, args.mode_bandwidth)
-            path = args.plot or Path(f"goal_{method}.png")
-            if args.plot and len(methods) == 2:
-                path = path.with_name(f"{path.stem}_{method}{path.suffix or '.png'}")
-            if not path.suffix:
-                path = path.with_suffix(".png")
-            plot_crossing(crossings, weights, report, method, args.output_frame, path, args.show)
-            report["method"] = method
-            report["heatmap"] = str(path)
-            report["observations_paper_frame_m"] = measured.tolist()
-            sign = 1 if args.output_frame == "paper" else -1
-            report["output_axes"] = ["x_right", "z_up"] if sign == 1 else ["y_left", "z_up"]
-            for key in ("mean", "approximate_mode"):
-                right, height = report[f"{key}_crossing_m"]
-                report[f"{key}_problem_xyz_m"] = [11, -right, height]
-                report[f"{key}_output_m"] = [sign*right, height]
-            reports[method] = report
-    except (OSError, ValueError) as exc:
-        parser.error(str(exc))
-    print(json.dumps(reports if len(reports) > 1 else next(iter(reports.values())),
-                     indent=2, allow_nan=False))
-
-
-if __name__ == "__main__":
-    main()

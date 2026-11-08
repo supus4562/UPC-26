@@ -62,3 +62,30 @@ with tempfile.TemporaryDirectory() as directory:
     pq.write_table(pa.Table.from_pylist([row],schema=SCHEMA),path)
     assert pq.read_table(path).to_pylist()==[row]
 print("Team 358 RHS, launch angles, signed spins, events, refinement and Parquet checks passed.")
+
+# Pipeline invariants and known metric values, independent of fitted model quality.
+from data import create_split, load_partition
+from evaluate import point_metrics
+from physics_predictors import summarize
+with tempfile.TemporaryDirectory() as directory:
+    root=Path(directory);source=root/'raw';source.mkdir()
+    rows=[dict(row,id=i) for i in range(101)]
+    pq.write_table(pa.Table.from_pylist(rows,schema=SCHEMA),source/'part-000.parquet')
+    meta=create_split(source,root/'split')
+    _,_,train_ids,_=load_partition(root/'split','train')
+    _,_,test_ids,_=load_partition(root/'split','test')
+    assert len(train_ids)==80 and len(test_ids)==21
+    assert not np.intersect1d(train_ids,test_ids).size
+    assert create_split(source,root/'split')==meta
+    path=root/'split'/'test'/'part-00000.parquet'
+    changed=pq.read_table(path).to_pylist();changed[0]['z_goal']+=.01
+    pq.write_table(pa.Table.from_pylist(changed,schema=SCHEMA),path)
+    try:load_partition(root/'split','test')
+    except ValueError:pass
+    else:raise AssertionError('Modified partition was not rejected')
+scores=point_metrics(np.zeros((2,2)),np.array([[3,4],[-3,-4]]))
+assert scores['radial_mse_m2']==25 and scores['radial_rmse_m']==5
+r=summarize(np.array([[1.,2.],[1.,-2.],[-1.,2.],[-1.,-2.]]),np.ones(4)/4,None)
+np.testing.assert_allclose([r['sigma_horizontal_m'],r['sigma_vertical_m'],r['radial_rms_uncertainty_m']], [1,2,np.sqrt(5)])
+assert r['joint_95_percent_ellipse'] is not None
+print('Split disjointness, stable resume, fingerprint rejection, MSE and uncertainty checks passed.')

@@ -1,0 +1,139 @@
+{
+  "frame": [
+    "paper_x_right",
+    "z_up"
+  ],
+  "training_rows": 63914,
+  "test_partition_rows": 15979,
+  "evaluated_rows": 15979,
+  "split": {
+    "version": 1,
+    "source_sha256": "a90ca8cc9cf32a1cc8ef149ae4f4c5bce2222335fac094401e74eb678e0b4e6c",
+    "seed": 42,
+    "train_fraction": 0.8,
+    "train_rows": 63914,
+    "train_sha256": "e5914ba671ad894d23893404c2fb85905df135d7db207113d5350e5174782094",
+    "test_rows": 15979,
+    "test_sha256": "affad316537ec73597c38697f933cdc46aecee8275350a8bfbe8c7e91466956c"
+  },
+  "seed": 42,
+  "observation_noise": "independent Gaussian",
+  "test_noise_sigma_m": 0.002886751345948129,
+  "likelihood_sigma_m": 0.002886751345948129,
+  "cgmm_posterior_draws": 10000,
+  "conditioned_on": "airborne goal entry",
+  "methods": {
+    "bayes": {
+      "evaluated": 15979,
+      "mean_crossing": {
+        "mse_horizontal_m2": 0.8008016110921339,
+        "mse_vertical_m2": 0.14167396626289935,
+        "mse_per_coordinate_m2": 0.47123778867751664,
+        "radial_mse_m2": 0.9424755773550333,
+        "rmse_horizontal_m": 0.8948751930253368,
+        "rmse_vertical_m": 0.3763960231762543,
+        "radial_rmse_m": 0.9708118135637994,
+        "mean_radial_error_m": 0.7827141047438434
+      },
+      "uncertainty": {
+        "sigma_horizontal_m": {
+          "mean": 0.769172768116881,
+          "median": 0.6408131291399045
+        },
+        "sigma_vertical_m": {
+          "mean": 0.35898997566523844,
+          "median": 0.32722203148447426
+        },
+        "radial_rms_uncertainty_m": {
+          "mean": 0.8589763115630871,
+          "median": 0.7320768412633702
+        },
+        "radial_95_radius_m": {
+          "mean": 1.4007472543717543,
+          "median": 1.1725742414591365
+        },
+        "marginal_95_width_m": {
+          "horizontal": 2.5975470044163376,
+          "vertical": 1.2448094675946797
+        }
+      },
+      "marginal_95_coverage": {
+        "horizontal": 0.9402966393391327,
+        "vertical": 0.9530008135678077
+      },
+      "radial_95_coverage": 0.9544402027661305,
+      "ellipse_95": {
+        "available": 15979,
+        "availability_rate": 1.0,
+        "covered": 15158,
+        "coverage_when_available": 0.9486200638337818,
+        "coverage_all_queries": 0.9486200638337818,
+        "mean_area_m2": 4.647160620596019
+      },
+      "adaptive_support": {
+        "measurement_only_ess": {
+          "median": 1.000000173527482,
+          "maximum": 3.455551331939428
+        },
+        "effective_sample_size": {
+          "median": 29.999999999999932,
+          "maximum": 30.000000002008555
+        },
+        "effective_sigma_m": {
+          "median": 0.03338130612363958,
+          "maximum": 0.2625026505596327
+        }
+      },
+      "point_estimator": "posterior mean (primary MSE estimator)"
+    },
+    "cgmm": {
+      "evaluated": 15979,
+      "mean_crossing": {
+        "mse_horizontal_m2": 0.4177823705328512,
+        "mse_vertical_m2": 0.09972816203731698,
+        "mse_per_coordinate_m2": 0.2587552662850841,
+        "radial_mse_m2": 0.5175105325701682,
+        "rmse_horizontal_m": 0.6463608671112843,
+        "rmse_vertical_m": 0.31579765996174985,
+        "radial_rmse_m": 0.7193820491019832,
+        "mean_radial_error_m": 0.492666294126644
+      },
+      "uncertainty": {
+        "sigma_horizontal_m": {
+          "mean": 0.44819711655602795,
+          "median": 0.30657107533762085
+        },
+        "sigma_vertical_m": {
+          "mean": 0.2517000979174983,
+          "median": 0.22226360778503382
+        },
+        "radial_rms_uncertainty_m": {
+          "mean": 0.5188933179110392,
+          "median": 0.3822189520334526
+        },
+        "radial_95_radius_m": {
+          "mean": 0.9254451322898815,
+          "median": 0.6679441277813842
+        },
+        "marginal_95_width_m": {
+          "horizontal": 1.739418961029354,
+          "vertical": 0.9723128939696823
+        }
+      },
+      "marginal_95_coverage": {
+        "horizontal": 0.9391075786970399,
+        "vertical": 0.9391701608360974
+      },
+      "radial_95_coverage": 0.9418611928155705,
+      "ellipse_95": {
+        "available": 15979,
+        "availability_rate": 1.0,
+        "covered": 15054,
+        "coverage_when_available": 0.9421115213718005,
+        "coverage_all_queries": 0.9421115213718005,
+        "mean_area_m2": 2.815998635658349
+      },
+      "point_estimator": "posterior mean (primary MSE estimator)"
+    }
+  }
+}

@@ -16,7 +16,7 @@ import scipy
 from scipy.integrate import solve_ivp
 from scipy.stats import qmc
 
-VERSION = 4
+VERSION = 5
 FLOAT_COLUMNS = [
     "speed_m_s", "polar_deg", "azimuth_deg",
     "omega_x_rad_s", "omega_y_rad_s", "omega_z_rad_s",
@@ -111,6 +111,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=Path("kicks"))
     parser.add_argument("--power", type=int, default=20, help="Generate 2**power candidates")
+    parser.add_argument("--split-seed", type=int, default=42)
     parser.add_argument("--seed", type=int, default=358)
     parser.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2)-1))
     parser.add_argument("--chunk-size", type=int, default=4096)
@@ -195,6 +196,8 @@ def main():
             print(f"{stop:,}/{total:,} candidates; {counts['accepted']:,} goals; "
                   f"{time.monotonic()-started:.1f}s this run", flush=True)
     write_json(output/"summary.json", {"candidates": total, "counts": dict(counts)})
+    from data import create_split
+    create_split(output, output, args.split_seed)
     print(json.dumps(dict(counts), indent=2))
 
 
