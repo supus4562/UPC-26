@@ -1,0 +1,34 @@
+\begin{table}[htbp]
+\centering
+\caption{Kinematic Inversion and Shooting Parameter Refinement (Competition Scenario)}
+\label{tab:kinematic_inversion}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Quantity} & \textbf{Analytical 2nd-Order Taylor} & \textbf{Gauss-Newton Shooting Refined} & \textbf{Units / Status} \\
+\midrule
+Initial Velocity $v_{0x}$ & $30.400$ & $30.127$ & $\text{m/s}$ \\
+Initial Velocity $v_{0y}$ & $9.400$ & $9.331$ & $\text{m/s}$ \\
+Initial Velocity $v_{0z}$ & $6.900$ & $6.844$ & $\text{m/s}$ \\
+Launch Speed $\|\vec{v}_0\|$ & $32.56$ ($117.2\text{ km/h}$) & $32.27$ ($116.2\text{ km/h}$) & $\text{m/s}$ \\
+Effective Magnus Vector $\vec{k}_M$ & $[0.0815, -0.0317, -0.3395]$ & $[0.0866, -0.0304, -0.3397]$ & $\text{m}^{-1}$ \\
+Spin Vector $\vec{\omega}$ & $[26.0, -9.1, -102.1]$ & $[26.0, -9.1, -102.1]$ & $\text{RPM}$ \\
+Total Physical Spin $\|\vec{\omega}\|$ & $105.8$ & $105.8$ & $\text{RPM}$ \\
+Non-Dimensional Spin Parameter $S_p$ & $0.0378$ & $0.0378$ & -- \\
+Magnus Lift Coefficient $C_L$ & $0.2014$ & $0.2014$ & -- \\
+Drag Coefficient $C_D(v_{\text{mid}})$ & $0.2426$ & $0.2426$ & -- \\
+Lift-to-Drag Ratio $L/D$ & $0.8300$ & $0.8300$ & -- \\
+\midrule
+Tracking Point $r_1$ Residual ($t = 0.05\text{ s}$) & $7.92$ & $6.35$ & $\text{mm}$ \\
+Tracking Point $r_2$ Residual ($t = 0.10\text{ s}$) & $31.58$ & $3.19$ & $\text{mm}$ \\
+\textbf{Mean Reconstruction Residual} $\epsilon_{\text{recon}}$ & $\mathbf{19.75}$ & $\mathbf{4.77}$ & $\mathbf{\text{mm}}$ \\
+Quantization Noise Limit Floor & $5.00$ & $5.00$ & $\text{mm}$ \\
+\textbf{Quantization Verification} & \textbf{FAILED} ($\epsilon > 5\text{mm}$) & \textbf{VERIFIED} ($\epsilon < 5\text{mm}$) & -- \\
+\midrule
+Flight Time to Goal Plane & $0.3882$ & $0.3915$ & $\text{s}$ \\
+Goal Intercept $y_{\text{goal}}$ & $+2.584$ & $+2.620$ & $\text{m}$ (Top-Right) \\
+Goal Intercept $z_{\text{goal}}$ & $+1.962$ & $+1.981$ & $\text{m}$ (Top-Right) \\
+Goal Clearance Inside Post & $1.076\text{ m}$ & $1.040\text{ m}$ & Inside Right Post \\
+Goal Clearance Below Crossbar & $0.478\text{ m}$ & $0.459\text{ m}$ & Below Crossbar \\
+\bottomrule
+\end{tabular}
+\end{table}

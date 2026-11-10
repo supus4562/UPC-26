@@ -1,0 +1,220 @@
+{
+    "primary_scenario": {
+        "v0_refined_m_per_s": [
+            30.1274,
+            9.3306,
+            6.8445
+        ],
+        "v0_analytical_m_per_s": [
+            30.4,
+            9.4,
+            6.9
+        ],
+        "speed_km_h": 116.18375701904297,
+        "cd_at_v_mid": 0.24260342121124268,
+        "nominal_spin_decay_beta": 0.07,
+        "air_buoyancy_accounted": true,
+        "buoyancy_factor": 0.015883064439881606,
+        "effective_gravity_m_per_s2": -9.654187137844762,
+        "reconstruction_residual_mm": 4.77188882190295,
+        "analytical_residual_mm": 19.749699626117945,
+        "model_consistency_verified": true,
+        "quantization_limit_mm": 5.0,
+        "spin_vector_rad_s": [
+            2.7255,
+            -0.9562,
+            -10.6934
+        ],
+        "spin_vector_rpm": [
+            26.03,
+            -9.13,
+            -102.11
+        ],
+        "spin_magnitude_rpm": 105.77,
+        "spin_parameter_Sp": 0.03775,
+        "magnus_lift_coefficient_CL": 0.2014,
+        "lift_to_drag_ratio": 0.83,
+        "arrival_time_s": 0.39146777987480164,
+        "arrival_y_m": 2.619917154312134,
+        "arrival_z_m": 1.9812413454055786
+    },
+    "jacobian_analysis": {
+        "condition_number": 251829.16484900712,
+        "singular_values": [
+            0.1938858056546925,
+            0.19388070497962293,
+            0.11087995181759702,
+            0.0198053765560323,
+            0.019804133983946183,
+            7.699100529954242e-07
+        ],
+        "linear_sigma_y_cm": 18.1250235689944,
+        "linear_sigma_z_cm": 16.389166689079733,
+        "linear_vs_mc_y_diff_pct": 8.877130569439554,
+        "linear_vs_mc_z_diff_pct": 10.665186178961756
+    },
+    "covariance_summary": {
+        "camera_corr_rho": 0.3645182817555772,
+        "crosswind_corr_rho": -0.9999422300718086,
+        "combined_corr_rho": 0.3575346317258686,
+        "combined_cov_yz_m2": 0.013333232687072408
+    },
+    "sensor_noise_comparison": {
+        "isotropic_sigma_y_cm": 15.349411964416504,
+        "isotropic_sigma_z_cm": 15.22178053855896,
+        "anisotropic_sigma_y_cm": 19.88227367401123,
+        "anisotropic_sigma_z_cm": 18.33902597427368
+    },
+    "uncertainty_budget": {
+        "camera_sigma_y_cm": 19.890751555850038,
+        "camera_sigma_z_cm": 18.345778076967463,
+        "cd_model_sigma_y_cm": 0.450382487512212,
+        "cd_model_sigma_z_cm": 0.8234199670505293,
+        "spin_decay_sigma_y_cm": 0.14589458403226532,
+        "spin_decay_sigma_z_cm": 0.016407175915113908,
+        "wind_sigma_y_cm": 3.6657042343164963,
+        "wind_sigma_z_cm": 0.39788234256998534,
+        "total_sigma_y_cm": 20.231250940185188,
+        "total_sigma_z_cm": 18.368564811803562,
+        "cam_only_ellipse_semi_major_m": 0.5486026956185382,
+        "cam_only_ellipse_semi_minor_m": 0.37108210808557124,
+        "cam_only_ellipse_area_m2": 0.6395548917196053,
+        "combined_ellipse_semi_major_m": 0.5539669248310327,
+        "combined_ellipse_semi_minor_m": 0.37664581589509233,
+        "combined_ellipse_area_m2": 0.6554911846545867
+    },
+    "goalkeeper_3d": {
+        "reaction_time_s": 0.18,
+        "move_time_s": 0.21146777987480164,
+        "horizontal_reach_m": 2.0016050094366076,
+        "vertical_reach_m": 1.7921097836494444,
+        "save_probability": 0.0001336
+    },
+    "archetype_robustness": [
+        {
+            "name": "Upper-Right In-Curler (Problem B)",
+            "target_y": 2.6199919472033546,
+            "target_z": 1.981440976707777,
+            "flight_time_s": 0.39147590029704876,
+            "is_goal": true,
+            "semi_major_m": 0.3779602889984261,
+            "semi_minor_m": 0.3718990763687197,
+            "tilt_deg": -147.8566639549617,
+            "area_m2": 0.4415919469790158,
+            "color": "#1f77b4",
+            "rpm_vec": [
+                26.0,
+                -9.1,
+                -102.1
+            ],
+            "rpm_total": 105.8,
+            "spin_parameter_Sp": 0.03776,
+            "lift_coefficient_CL": 0.2014,
+            "lift_to_drag_LD": 0.83
+        },
+        {
+            "name": "Upper-Left In-Swinger",
+            "target_y": -2.6242484354223365,
+            "target_z": 1.9831908082796164,
+            "flight_time_s": 0.3966923572246046,
+            "is_goal": true,
+            "semi_major_m": 0.38811555325218977,
+            "semi_minor_m": 0.3799277771775616,
+            "tilt_deg": 143.41162730700432,
+            "area_m2": 0.4632463075620707,
+            "color": "#ff7f0e",
+            "rpm_vec": [
+                -24.0,
+                -10.5,
+                99.2
+            ],
+            "rpm_total": 102.6,
+            "spin_parameter_Sp": 0.03703,
+            "lift_coefficient_CL": 0.1975,
+            "lift_to_drag_LD": 0.8006
+        },
+        {
+            "name": "Low-Right Driven Corner Shot",
+            "target_y": 1.850773442114025,
+            "target_z": 0.714501472160418,
+            "flight_time_s": 0.3785852625489889,
+            "is_goal": true,
+            "semi_major_m": 0.3504485211622359,
+            "semi_minor_m": 0.3462604052146524,
+            "tilt_deg": -176.98284733067436,
+            "area_m2": 0.3812211062601009,
+            "color": "#2ca02c",
+            "rpm_vec": [
+                3.0,
+                0.0,
+                -15.0
+            ],
+            "rpm_total": 15.3,
+            "spin_parameter_Sp": 0.00548,
+            "lift_coefficient_CL": 0.0292,
+            "lift_to_drag_LD": 0.1201
+        },
+        {
+            "name": "Low-Left Driven Corner Shot",
+            "target_y": -1.850773442114025,
+            "target_z": 0.714501472160418,
+            "flight_time_s": 0.3785852625489889,
+            "is_goal": true,
+            "semi_major_m": 0.34998748031796634,
+            "semi_minor_m": 0.3456063582028018,
+            "tilt_deg": -171.4882676363884,
+            "area_m2": 0.38000044528754146,
+            "color": "#d62728",
+            "rpm_vec": [
+                -3.0,
+                0.0,
+                15.0
+            ],
+            "rpm_total": 15.3,
+            "spin_parameter_Sp": 0.00548,
+            "lift_coefficient_CL": 0.0292,
+            "lift_to_drag_LD": 0.1201
+        },
+        {
+            "name": "Center Panenka Chip (Dipping Topspin)",
+            "target_y": 0.06403143675829805,
+            "target_z": 2.255212861508963,
+            "flight_time_s": 0.7396210182903988,
+            "is_goal": true,
+            "semi_major_m": 1.3770915489278308,
+            "semi_minor_m": 1.3420286946925453,
+            "tilt_deg": 177.03724123076057,
+            "area_m2": 5.805965991306564,
+            "color": "#9467bd",
+            "rpm_vec": [
+                0.0,
+                -66.1,
+                0.0
+            ],
+            "rpm_total": 66.1,
+            "spin_parameter_Sp": 0.04132,
+            "lift_coefficient_CL": 0.2204,
+            "lift_to_drag_LD": 0.4931
+        }
+    ],
+    "starting_point_robustness": {
+        "std_y_mm": 50.73613300919533,
+        "std_z_mm": 5.3518409840762615
+    },
+    "frame_rate_robustness": {
+        "fps": [
+            15,
+            20,
+            30,
+            60,
+            100
+        ],
+        "ellipse_area_m2": [
+            0.11346485147150852,
+            0.43495859844128576,
+            2.689594038117249,
+            63.37817526277915,
+            117.24566978155161
+        ]
+    }
+}

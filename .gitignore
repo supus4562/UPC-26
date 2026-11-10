@@ -1,0 +1,4 @@
+.venv
+*.pdf
+__pycache__
+simulation_output/

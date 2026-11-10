@@ -1,0 +1,33 @@
+\begin{table}[htbp]
+\centering
+\caption{Shooting Jacobian Spectrum, Condition Number, and Goal Sensitivity Matrix}
+\label{tab:jacobian_conditioning}
+\begin{tabular}{lccl}
+\toprule
+\textbf{Metric} & \textbf{Symbol} & \textbf{Value} & \textbf{Mathematical Significance} \\
+\midrule
+Shooting Jacobian Dimension & $\dim(J)$ & $6 \times 6$ & Maps $[\vec{v}_0, \vec{k}_M] \to [\vec{r}(t_1), \vec{r}(t_2)]$ \\
+Singular Value 1 (Maximum) & $\sigma_1$ & $1.9389\times 10^{-1}$ & Primary longitudinal observability mode \\
+Singular Value 2 & $\sigma_2$ & $1.9388\times 10^{-1}$ & Lateral tracking observability \\
+Singular Value 3 & $\sigma_3$ & $1.1088\times 10^{-1}$ & Vertical tracking observability \\
+Singular Value 4 & $\sigma_4$ & $1.9805\times 10^{-2}$ & Magnus curvature transverse mode 1 \\
+Singular Value 5 & $\sigma_5$ & $1.9804\times 10^{-2}$ & Magnus curvature transverse mode 2 \\
+Singular Value 6 (Minimum) & $\sigma_6$ & $7.6991\times 10^{-7}$ & Gauge-constrained transverse spin mode \\
+Condition Number (Physical) & $\kappa_5(J) = \sigma_1 / \sigma_5$ & $9.79$ & Well-conditioned physical modes ($\kappa_5 < 10$) \\
+Condition Number (Full) & $\kappa_6(J) = \sigma_1 / \sigma_6$ & $2.52\times 10^{5}$ & Mode 6 gauge-truncated via $\text{rtol} = 10^{-3}$ \\
+SVD Cutoff Parameter & $\text{rtol}$ & $10^{-3}$ & Regularized pseudo-inverse threshold \\
+\midrule
+\multicolumn{4}{c}{\textbf{Goal Observation Sensitivity Matrix} $J_{\text{goal} \leftarrow \text{obs}} = \frac{\partial (y_{\text{goal}}, z_{\text{goal}})}{\partial (\vec{r}_1, \vec{r}_2)}$} \\
+$\partial y_{\text{goal}} / \partial r_{1y}$ & & $-39.518$ & Lateral leverage from $t = 0.05\text{ s}$ \\
+$\partial y_{\text{goal}} / \partial r_{2y}$ & & $23.655$ & Lateral leverage from $t = 0.10\text{ s}$ \\
+$\partial z_{\text{goal}} / \partial r_{1z}$ & & $-39.842$ & Vertical leverage from $t = 0.05\text{ s}$ \\
+$\partial z_{\text{goal}} / \partial r_{2z}$ & & $23.801$ & Vertical leverage from $t = 0.10\text{ s}$ \\
+\midrule
+Linear Propagated $\sigma_y$ & $\sigma_{y,\text{linear}}$ & $18.13\text{ cm}$ & Analytical linear covariance ($J \Sigma J^T$) \\
+Linear Propagated $\sigma_z$ & $\sigma_{z,\text{linear}}$ & $16.39\text{ cm}$ & Analytical linear covariance ($J \Sigma J^T$) \\
+MC Empirical $\sigma_y$ & $\sigma_{y,\text{MC}}$ & $19.89\text{ cm}$ & 5,000,000-sample nonlinear GPU ensemble \\
+MC Empirical $\sigma_z$ & $\sigma_{z,\text{MC}}$ & $18.35\text{ cm}$ & 5,000,000-sample nonlinear GPU ensemble \\
+Linear vs MC Discrepancy & $|\Delta \sigma| / \sigma$ & $8.88\%$ & Validates linear error propagation regime \\
+\bottomrule
+\end{tabular}
+\end{table}

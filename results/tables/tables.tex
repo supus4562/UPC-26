@@ -1,0 +1,144 @@
+% ==========================================================================
+% UPC '26 PROBLEM B: MASTER PUBLICATION TABLES
+% Generated from High-Performance Cloud GPU Integrator (Modal.com)
+% ==========================================================================
+
+% --- TABLE 1: Physical Constants & Environmental Parameters ---
+\begin{table}[htbp]
+\centering
+\caption{Physical System Parameters and Environmental Constants (FIFA Size 5 Soccer Ball)}
+\label{tab:physics_constants}
+\begin{tabular}{llcc}
+\toprule
+\textbf{Parameter Description} & \textbf{Symbol} & \textbf{Value} & \textbf{Unit} \\
+\midrule
+Ball Mass & $m$ & $0.430$ & $\text{kg}$ \\
+Ball Radius & $R$ & $0.110$ & $\text{m}$ \\
+Cross-Sectional Area & $A = \pi R^2$ & $0.03801$ & $\text{m}^2$ \\
+Ball Volume & $V = \frac{4}{3}\pi R^3$ & $0.005575$ & $\text{m}^3$ \\
+Sea-Level Air Density ($15^\circ\text{C}$) & $\rho_{\text{air}}$ & $1.225$ & $\text{kg/m}^3$ \\
+Standard Gravitational Acceleration & $g$ & $9.810$ & $\text{m/s}^2$ \\
+Archimedes Buoyant Force Fraction & $\rho_{\text{air}} V / m$ & $1.588$ & $\%$ \\
+Effective Gravitational Acceleration & $g_{\text{eff}} = g(1 - \rho_{\text{air}}V/m)$ & $9.6542$ & $\text{m/s}^2$ \\
+Drag Crisis Critical Velocity & $v_{\text{crit}}$ & $26.80$ & $\text{m/s}$ \\
+Drag Transition Width & $\Delta v_{\text{crit}}$ & $3.50$ & $\text{m/s}$ \\
+Subcritical Drag Coefficient (Laminar) & $C_{D,\text{high}}$ & $0.470$ & -- \\
+Supercritical Drag Coefficient (Turbulent) & $C_{D,\text{low}}$ & $0.195$ & -- \\
+Aerodynamic Spin Decay Constant & $\beta$ & $0.070$ & $\text{s}^{-1}$ \\
+Magnus Coupling Constant & $C_{\text{Magnus}} = \frac{8\pi \rho R^3}{3m}$ & $0.031766$ & $\text{m}^{-1}$ \\
+Goal Distance from Penalty Spot & $X_{\text{goal}}$ & $11.00$ & $\text{m}$ \\
+Goal Dimensions (Width $\times$ Height) & $W \times H$ & $7.32 \times 2.44$ & $\text{m} \times \text{m}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% --- TABLE 2: Kinematic Inversion Comparison ---
+\begin{table}[htbp]
+\centering
+\caption{Kinematic Inversion and Shooting Parameter Refinement (Competition Scenario)}
+\label{tab:kinematic_inversion}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Quantity} & \textbf{Analytical 2nd-Order Taylor} & \textbf{Gauss-Newton Shooting Refined} & \textbf{Units / Status} \\
+\midrule
+Initial Velocity $v_{0x}$ & $30.400$ & $30.127$ & $\text{m/s}$ \\
+Initial Velocity $v_{0y}$ & $9.400$ & $9.331$ & $\text{m/s}$ \\
+Initial Velocity $v_{0z}$ & $6.900$ & $6.844$ & $\text{m/s}$ \\
+Launch Speed $\|\vec{v}_0\|$ & $32.56$ ($117.2\text{ km/h}$) & $32.27$ ($116.2\text{ km/h}$) & $\text{m/s}$ \\
+Effective Magnus Vector $\vec{k}_M$ & $[0.0815, -0.0317, -0.3395]$ & $[0.0866, -0.0304, -0.3397]$ & $\text{m}^{-1}$ \\
+Spin Vector $\vec{\omega}$ & $[26.0, -9.1, -102.1]$ & $[26.0, -9.1, -102.1]$ & $\text{RPM}$ \\
+Total Physical Spin $\|\vec{\omega}\|$ & $105.8$ & $105.8$ & $\text{RPM}$ \\
+Non-Dimensional Spin Parameter $S_p$ & $0.0378$ & $0.0378$ & -- \\
+Magnus Lift Coefficient $C_L$ & $0.2014$ & $0.2014$ & -- \\
+Drag Coefficient $C_D(v_{\text{mid}})$ & $0.2426$ & $0.2426$ & -- \\
+Lift-to-Drag Ratio $L/D$ & $0.8300$ & $0.8300$ & -- \\
+\midrule
+Tracking Point $r_1$ Residual ($t = 0.05\text{ s}$) & $7.92$ & $6.35$ & $\text{mm}$ \\
+Tracking Point $r_2$ Residual ($t = 0.10\text{ s}$) & $31.58$ & $3.19$ & $\text{mm}$ \\
+\textbf{Mean Reconstruction Residual} $\epsilon_{\text{recon}}$ & $\mathbf{19.75}$ & $\mathbf{4.77}$ & $\mathbf{\text{mm}}$ \\
+Quantization Noise Limit Floor & $5.00$ & $5.00$ & $\text{mm}$ \\
+\textbf{Quantization Verification} & \textbf{FAILED} ($\epsilon > 5\text{mm}$) & \textbf{VERIFIED} ($\epsilon < 5\text{mm}$) & -- \\
+\midrule
+Flight Time to Goal Plane & $0.3882$ & $0.3915$ & $\text{s}$ \\
+Goal Intercept $y_{\text{goal}}$ & $+2.584$ & $+2.620$ & $\text{m}$ (Top-Right) \\
+Goal Intercept $z_{\text{goal}}$ & $+1.962$ & $+1.981$ & $\text{m}$ (Top-Right) \\
+Goal Clearance Inside Post & $1.076\text{ m}$ & $1.040\text{ m}$ & Inside Right Post \\
+Goal Clearance Below Crossbar & $0.478\text{ m}$ & $0.459\text{ m}$ & Below Crossbar \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% --- TABLE 3: Shooting Jacobian Conditioning & Observability ---
+\begin{table}[htbp]
+\centering
+\caption{Shooting Jacobian Spectrum, Condition Number, and Goal Sensitivity Matrix}
+\label{tab:jacobian_conditioning}
+\begin{tabular}{lccl}
+\toprule
+\textbf{Metric} & \textbf{Symbol} & \textbf{Value} & \textbf{Mathematical Significance} \\
+\midrule
+Shooting Jacobian Dimension & $\dim(J)$ & $6 \times 6$ & Maps $[\vec{v}_0, \vec{k}_M] \to [\vec{r}(t_1), \vec{r}(t_2)]$ \\
+Singular Value 1 (Maximum) & $\sigma_1$ & $1.9389\times 10^{-1}$ & Primary longitudinal observability mode \\
+Singular Value 2 & $\sigma_2$ & $1.9388\times 10^{-1}$ & Lateral tracking observability \\
+Singular Value 3 & $\sigma_3$ & $1.1088\times 10^{-1}$ & Vertical tracking observability \\
+Singular Value 4 & $\sigma_4$ & $1.9805\times 10^{-2}$ & Magnus curvature transverse mode 1 \\
+Singular Value 5 & $\sigma_5$ & $1.9804\times 10^{-2}$ & Magnus curvature transverse mode 2 \\
+Singular Value 6 (Minimum) & $\sigma_6$ & $7.6991\times 10^{-7}$ & Gauge-constrained transverse spin mode \\
+Condition Number (Physical) & $\kappa_5(J) = \sigma_1 / \sigma_5$ & $9.79$ & Well-conditioned physical modes ($\kappa_5 < 10$) \\
+Condition Number (Full) & $\kappa_6(J) = \sigma_1 / \sigma_6$ & $2.52\times 10^{5}$ & Mode 6 gauge-truncated via $\text{rtol} = 10^{-3}$ \\
+SVD Cutoff Parameter & $\text{rtol}$ & $10^{-3}$ & Regularized pseudo-inverse threshold \\
+\midrule
+\multicolumn{4}{c}{\textbf{Goal Observation Sensitivity Matrix} $J_{\text{goal} \leftarrow \text{obs}} = \frac{\partial (y_{\text{goal}}, z_{\text{goal}})}{\partial (\vec{r}_1, \vec{r}_2)}$} \\
+$\partial y_{\text{goal}} / \partial r_{1y}$ & & $-39.518$ & Lateral leverage from $t = 0.05\text{ s}$ \\
+$\partial y_{\text{goal}} / \partial r_{2y}$ & & $23.655$ & Lateral leverage from $t = 0.10\text{ s}$ \\
+$\partial z_{\text{goal}} / \partial r_{1z}$ & & $-39.842$ & Vertical leverage from $t = 0.05\text{ s}$ \\
+$\partial z_{\text{goal}} / \partial r_{2z}$ & & $23.801$ & Vertical leverage from $t = 0.10\text{ s}$ \\
+\midrule
+Linear Propagated $\sigma_y$ & $\sigma_{y,\text{linear}}$ & $18.13\text{ cm}$ & Analytical linear covariance ($J \Sigma J^T$) \\
+Linear Propagated $\sigma_z$ & $\sigma_{z,\text{linear}}$ & $16.39\text{ cm}$ & Analytical linear covariance ($J \Sigma J^T$) \\
+MC Empirical $\sigma_y$ & $\sigma_{y,\text{MC}}$ & $19.89\text{ cm}$ & 5,000,000-sample nonlinear GPU ensemble \\
+MC Empirical $\sigma_z$ & $\sigma_{z,\text{MC}}$ & $18.35\text{ cm}$ & 5,000,000-sample nonlinear GPU ensemble \\
+Linear vs MC Discrepancy & $|\Delta \sigma| / \sigma$ & $8.88\%$ & Validates linear error propagation regime \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% --- TABLE 4: 4-Part Uncertainty Budget ---
+\begin{table}[htbp]
+\centering
+\caption{Comprehensive 4-Part Goal-Plane Uncertainty Budget (5,000,000 Monte Carlo GPU Samples)}
+\label{tab:uncertainty_budget}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Uncertainty Source} & $\mathbf{\sigma_y}$ \textbf{(cm)} & $\mathbf{\sigma_z}$ \textbf{(cm)} & \textbf{Var Share (\%)} & $\mathbf{\text{Cov}(y,z)}$ $\mathbf{(\text{cm}^2)}$ & $\mathbf{\rho_{yz}}$ & \textbf{95\% Area} $\mathbf{(\text{m}^2)}$ \\
+\midrule
+Optical Camera Noise (Anisotropic) & $19.89$ & $18.35$ & $98.1\%$ & $133.02$ & $+0.365$ & $0.6396$ \\
+\quad \textit{Comparison: Optical (Isotropic 3mm)} & $15.35$ & $15.22$ & \textit{--} & $4.56$ & $+0.020$ & $0.4397$ \\
+Crosswind Uncertainty ($\pm 1.0\text{ m/s}$) & $3.67$ & $0.40$ & $1.8\%$ & $-1.46$ & $-1.000$ & $0.0000$ \\
+Aerodynamic Drag Model Error ($\pm 10\% C_D$) & $0.45$ & $0.82$ & $0.1\%$ & $0.37$ & $+1.000$ & $0.0000$ \\
+Spin Decay Rate Error ($\pm 21\% \beta$) & $0.15$ & $0.02$ & $0.00\%$ & $-0.00$ & $-1.000$ & $0.0000$ \\
+\midrule
+\textbf{Total Combined Uncertainty Budget} & $\mathbf{20.23}$ & $\mathbf{18.37}$ & $\mathbf{100.0\%}$ & $\mathbf{133.33}$ & $\mathbf{+0.358}$ & $\mathbf{0.6555}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% --- TABLE 5: Kick Archetypes Evaluation ---
+\begin{table}[htbp]
+\centering
+\caption{Aerodynamic Performance and Goal-Mouth Intercepts of 5 Classical Kick Archetypes}
+\label{tab:archetypes}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lcccccccccc}
+\toprule
+\textbf{Kick Archetype} & $\mathbf{\|\vec{v}_0\|}$ \textbf{(km/h)} & \textbf{Spin (RPM)} & $\mathbf{S_p}$ & $\mathbf{C_L}$ & $\mathbf{L/D}$ & $\mathbf{y_{\text{goal}}}$ \textbf{(m)} & $\mathbf{z_{\text{goal}}}$ \textbf{(m)} & $\mathbf{t_{\text{flight}}}$ \textbf{(s)} & \textbf{95\% Area} $\mathbf{(\text{m}^2)}$ & \textbf{Outcome} \\
+\midrule
+Upper-Right In-Curler (Problem B) & $116.2$ & $105.8$ & $0.0378$ & $0.201$ & $0.83$ & $+2.62$ & $1.98$ & $0.391$ & $0.442$ & Goal (In Net) \\
+Upper-Left In-Swinger & $114.7$ & $102.6$ & $0.0370$ & $0.198$ & $0.80$ & $-2.62$ & $1.98$ & $0.397$ & $0.463$ & Goal (In Net) \\
+Low-Right Driven Corner Shot & $115.9$ & $15.3$ & $0.0055$ & $0.029$ & $0.12$ & $+1.85$ & $0.71$ & $0.379$ & $0.381$ & Goal (In Net) \\
+Low-Left Driven Corner Shot & $115.9$ & $15.3$ & $0.0055$ & $0.029$ & $0.12$ & $-1.85$ & $0.71$ & $0.379$ & $0.380$ & Goal (In Net) \\
+Center Panenka Chip (Dipping Topspin) & $66.4$ & $66.1$ & $0.0413$ & $0.220$ & $0.49$ & $+0.06$ & $2.26$ & $0.740$ & $5.806$ & Goal (In Net) \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
